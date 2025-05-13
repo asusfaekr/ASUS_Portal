@@ -7,23 +7,31 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ThumbsUp, MessageSquare, Share2, ArrowLeft } from "lucide-react"
+import { ThumbsUp, MessageSquare, Share2, ArrowLeft, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/components/auth-provider"
+import { CommentSection } from "@/components/comment-section"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function PostDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuth()
   const [post, setPost] = useState<any>(null)
+  const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [likeCount, setLikeCount] = useState(0)
+  const [userLiked, setUserLiked] = useState(false)
+  const [likeLoading, setLikeLoading] = useState(false)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchPost = async () => {
       setLoading(true)
       try {
-        const { data, error } = await supabase
+        // 게시글 정보 가져오기
+        const { data: postData, error: postError } = await supabase
           .from("posts")
           .select(`
             *,
@@ -33,12 +41,52 @@ export default function PostDetailPage() {
           .eq("id", params.id)
           .single()
 
-        if (error) {
+        if (postError) {
           setError("게시글을 불러오는 중 오류가 발생했습니다.")
           return
         }
 
-        setPost(data)
+        setPost(postData)
+
+        // 댓글 정보 가져오기
+        const { data: commentsData, error: commentsError } = await supabase
+          .from("comments")
+          .select(`
+            *,
+            users:user_id (*)
+          `)
+          .eq("post_id", params.id)
+          .order("created_at", { ascending: false })
+
+        if (commentsError) {
+          console.error("Error fetching comments:", commentsError)
+        } else {
+          setComments(commentsData || [])
+        }
+
+        // 좋아요 수 가져오기
+        const { count, error: likesError } = await supabase
+          .from("likes")
+          .select("*", { count: "exact" })
+          .eq("post_id", params.id)
+
+        if (!likesError) {
+          setLikeCount(count || 0)
+        }
+
+        // 사용자가 좋아요 했는지 확인
+        if (user) {
+          const { data: userLikeData, error: userLikeError } = await supabase
+            .from("likes")
+            .select("*")
+            .eq("post_id", params.id)
+            .eq("user_id", user.id)
+            .single()
+
+          if (!userLikeError && userLikeData) {
+            setUserLiked(true)
+          }
+        }
       } catch (error) {
         setError("게시글을 불러오는 중 오류가 발생했습니다.")
       } finally {
@@ -49,7 +97,7 @@ export default function PostDetailPage() {
     if (params.id) {
       fetchPost()
     }
-  }, [params.id])
+  }, [params.id, user])
 
   const formatDate = (dateString: string) => {
     if (!dateString) return ""
@@ -63,10 +111,66 @@ export default function PostDetailPage() {
     }).format(date)
   }
 
+  const handleLike = async () => {
+    if (!user) {
+      router.push("/login")
+      return
+    }
+
+    setLikeLoading(true)
+    try {
+      if (userLiked) {
+        // 좋아요 취소
+        const { error } = await supabase.from("likes").delete().eq("post_id", params.id).eq("user_id", user.id)
+
+        if (error) {
+          console.error("Error removing like:", error)
+          return
+        }
+
+        setLikeCount((prev) => prev - 1)
+        setUserLiked(false)
+      } else {
+        // 좋아요 추가
+        const { error } = await supabase.from("likes").insert({
+          post_id: params.id,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+        })
+
+        if (error) {
+          console.error("Error adding like:", error)
+          return
+        }
+
+        setLikeCount((prev) => prev + 1)
+        setUserLiked(true)
+      }
+    } catch (error) {
+      console.error("Error:", error)
+    } finally {
+      setLikeLoading(false)
+    }
+  }
+
+  const handleShare = () => {
+    const url = window.location.href
+    navigator.clipboard.writeText(url).then(
+      () => {
+        setShareMessage("링크가 클립보드에 복사되었습니다.")
+        setTimeout(() => setShareMessage(null), 3000)
+      },
+      () => {
+        setShareMessage("링크 복사에 실패했습니다.")
+        setTimeout(() => setShareMessage(null), 3000)
+      },
+    )
+  }
+
   if (loading) {
     return (
       <div className="container py-10 flex justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     )
   }
@@ -91,6 +195,12 @@ export default function PostDetailPage() {
       <Button variant="ghost" className="mb-4" onClick={() => router.back()}>
         <ArrowLeft className="mr-2 h-4 w-4" /> 돌아가기
       </Button>
+
+      {shareMessage && (
+        <Alert className="mb-4">
+          <AlertDescription>{shareMessage}</AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader className="pb-2">
@@ -127,21 +237,44 @@ export default function PostDetailPage() {
           <Separator />
 
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" className="gap-2">
-              <ThumbsUp className="h-4 w-4" />
-              좋아요
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`gap-2 ${userLiked ? "text-blue-600" : ""}`}
+              onClick={handleLike}
+              disabled={likeLoading}
+            >
+              {likeLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ThumbsUp className={`h-4 w-4 ${userLiked ? "fill-current" : ""}`} />
+              )}
+              좋아요 {likeCount > 0 ? likeCount : ""}
             </Button>
-            <Button variant="ghost" size="sm" className="gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              onClick={() => document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" })}
+            >
               <MessageSquare className="h-4 w-4" />
-              댓글
+              댓글 {comments.length > 0 ? comments.length : ""}
             </Button>
-            <Button variant="ghost" size="sm" className="gap-2">
+            <Button variant="ghost" size="sm" className="gap-2" onClick={handleShare}>
               <Share2 className="h-4 w-4" />
               공유
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      <div id="comments" className="mt-8">
+        <Card>
+          <CardContent className="p-6">
+            <CommentSection postId={Number(params.id)} initialComments={comments} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
