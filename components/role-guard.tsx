@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth-provider"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { ShieldAlert } from "lucide-react"
 
 interface RoleGuardProps {
   children: React.ReactNode
@@ -52,6 +53,7 @@ export function RoleGuard({ children, requiredRoles, redirectTo = "/login" }: Ro
     return (
       <div className="container py-10 max-w-3xl mx-auto">
         <Alert variant="destructive" className="mb-6">
+          <ShieldAlert className="h-5 w-5" />
           <AlertTitle>접근 권한이 없습니다</AlertTitle>
           <AlertDescription>이 페이지에 접근하기 위한 권한이 없습니다. 관리자에게 문의하세요.</AlertDescription>
         </Alert>

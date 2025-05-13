@@ -21,8 +21,11 @@ export async function middleware(req: NextRequest) {
     }
 
     // 로그인이 필요한 페이지 목록
-    const protectedRoutes = ["/fae-portal", "/sales-portal", "/marketing-portal", "/create-post", "/profile"]
-    const isProtectedRoute = protectedRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
+    const protectedRoutes = ["/fae-portal", "/sales-portal", "/marketing-portal", "/create-post", "/profile", "/post"]
+
+    const isProtectedRoute = protectedRoutes.some(
+      (route) => req.nextUrl.pathname.startsWith(route) || req.nextUrl.pathname === route,
+    )
 
     // 로그인이 필요한 페이지에 접근하려는데 로그인이 안 되어 있으면 로그인 페이지로 리다이렉트
     if (isProtectedRoute && !session) {

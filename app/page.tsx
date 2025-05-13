@@ -1,7 +1,6 @@
 import { ProfileCard } from "@/components/profile-card"
 import { ForumPosts } from "@/components/forum-posts"
 import { RewardSystem } from "@/components/reward-system"
-import { SupabaseStatus } from "@/components/supabase-status"
 
 export default function Home() {
   return (
@@ -11,7 +10,6 @@ export default function Home() {
         <RewardSystem />
       </div>
       <div className="md:col-span-9">
-        <SupabaseStatus />
         <ForumPosts defaultCategory="all" />
       </div>
     </div>

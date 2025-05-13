@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -16,6 +17,7 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login")
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,6 +37,7 @@ export function LoginForm() {
 
       // 로그인 성공 시 홈으로 이동
       router.push("/")
+      router.refresh()
     } catch (error) {
       console.error("Login error:", error)
       setMessage({ type: "error", text: "로그인 중 오류가 발생했습니다." })
@@ -43,9 +46,17 @@ export function LoginForm() {
     }
   }
 
-  const handleSignUp = async () => {
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
     setMessage(null)
+
+    // 이메일 도메인 검증 (asus.com 도메인만 허용)
+    if (!email.endsWith("@asus.com")) {
+      setMessage({ type: "error", text: "ASUS 이메일(@asus.com)만 가입이 가능합니다." })
+      setLoading(false)
+      return
+    }
 
     try {
       const { error } = await supabase.auth.signUp({
@@ -55,7 +66,7 @@ export function LoginForm() {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             full_name: "",
-            company: "",
+            company: "ASUS",
             position: "",
           },
         },
@@ -117,46 +128,82 @@ export function LoginForm() {
         </Alert>
       )}
 
-      <form onSubmit={handleLogin} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">이메일</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="name@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "register")}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="login">로그인</TabsTrigger>
+          <TabsTrigger value="register">회원가입</TabsTrigger>
+        </TabsList>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">비밀번호</Label>
-            <button type="button" onClick={handleForgotPassword} className="text-xs text-blue-600 hover:underline">
-              비밀번호 찾기
-            </button>
-          </div>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
+        <TabsContent value="login" className="mt-4">
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email-login">이메일</Label>
+              <Input
+                id="email-login"
+                type="email"
+                placeholder="name@asus.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "처리 중..." : "로그인"}
-        </Button>
-      </form>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password-login">비밀번호</Label>
+                <button type="button" onClick={handleForgotPassword} className="text-xs text-blue-600 hover:underline">
+                  비밀번호 찾기
+                </button>
+              </div>
+              <Input
+                id="password-login"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
 
-      <div className="text-center">
-        <p className="text-sm text-muted-foreground">계정이 없으신가요?</p>
-        <Button variant="outline" className="mt-2 w-full" onClick={handleSignUp} disabled={loading}>
-          {loading ? "처리 중..." : "회원가입"}
-        </Button>
-      </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "처리 중..." : "로그인"}
+            </Button>
+          </form>
+        </TabsContent>
+
+        <TabsContent value="register" className="mt-4">
+          <form onSubmit={handleSignUp} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email-register">이메일 (@asus.com)</Label>
+              <Input
+                id="email-register"
+                type="email"
+                placeholder="name@asus.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <p className="text-xs text-muted-foreground">ASUS 이메일(@asus.com)만 가입이 가능합니다.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password-register">비밀번호</Label>
+              <Input
+                id="password-register"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+              <p className="text-xs text-muted-foreground">비밀번호는 최소 6자 이상이어야 합니다.</p>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "처리 중..." : "회원가입"}
+            </Button>
+          </form>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
