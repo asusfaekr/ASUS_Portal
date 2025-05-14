@@ -21,7 +21,18 @@ export async function middleware(req: NextRequest) {
     }
 
     // 로그인이 필요한 페이지 목록
-    const protectedRoutes = ["/fae-portal", "/sales-portal", "/marketing-portal", "/create-post", "/profile", "/post"]
+    const protectedRoutes = [
+      "/fae-portal",
+      "/sales-portal",
+      "/marketing-portal",
+      "/create-post",
+      "/profile",
+      "/post",
+      "/tech-library",
+      "/dashboard",
+      "/messages",
+      "/notifications",
+    ]
 
     const isProtectedRoute = protectedRoutes.some(
       (route) => req.nextUrl.pathname.startsWith(route) || req.nextUrl.pathname === route,
@@ -34,11 +45,21 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
-    // 역할 기반 접근 제어
+    // 역할 기반 접근 제어 및 이메일 인증 확인
     if (session) {
       try {
-        // 사용자 역할 가져오기
-        const { data: userData } = await supabase.from("users").select("role_id").eq("id", session.user.id).single()
+        // 사용자 정보 가져오기 (역할 및 인증 상태)
+        const { data: userData } = await supabase
+          .from("users")
+          .select("role_id, is_verified")
+          .eq("id", session.user.id)
+          .single()
+
+        // 이메일 인증이 완료되지 않은 경우 로그인 페이지로 리다이렉트
+        if (!userData?.is_verified && req.nextUrl.pathname !== "/login") {
+          await supabase.auth.signOut() // 세션 종료
+          return NextResponse.redirect(new URL("/login?error=not_verified", req.url))
+        }
 
         const userRoleId = userData?.role_id
 

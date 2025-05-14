@@ -1,0 +1,197 @@
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
+import { cookies } from "next/headers"
+import { NextResponse } from "next/server"
+
+export async function GET(request: Request) {
+  try {
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+
+    // 1. 기본 게시판 추가
+    await supabase.from("boards").upsert(
+      [
+        { id: 1, name: "공지사항", slug: "announcements", description: "공지사항 게시판", role_id: null },
+        {
+          id: 2,
+          name: "FAE 기술 업데이트",
+          slug: "fae-technical-updates",
+          description: "FAE 기술 업데이트 게시판",
+          role_id: 1,
+        },
+        { id: 3, name: "FAE 리소스", slug: "fae-resources", description: "FAE 리소스 게시판", role_id: 1 },
+        { id: 4, name: "Sales 기회", slug: "sales-opportunities", description: "Sales 기회 게시판", role_id: 2 },
+        { id: 5, name: "Sales 리소스", slug: "sales-resources", description: "Sales 리소스 게시판", role_id: 2 },
+        {
+          id: 6,
+          name: "Marketing 캠페인",
+          slug: "marketing-campaigns",
+          description: "Marketing 캠페인 게시판",
+          role_id: 3,
+        },
+        {
+          id: 7,
+          name: "Marketing 리소스",
+          slug: "marketing-resources",
+          description: "Marketing 리소스 게시판",
+          role_id: 3,
+        },
+      ],
+      { onConflict: "id" },
+    )
+
+    // 2. 테스트 사용자 생성 (이미 있는 경우 업데이트)
+    const { data: adminUser } = await supabase.auth.admin.getUserById("00000000-0000-0000-0000-000000000000")
+
+    let adminId = adminUser?.user?.id
+
+    if (!adminId) {
+      // 관리자 계정이 없으면 생성 (실제로는 이 부분이 작동하지 않을 수 있음, Supabase Admin API 권한 필요)
+      adminId = "00000000-0000-0000-0000-000000000000"
+    }
+
+    // 3. 테스트 게시글 추가
+    // 공지사항 게시글
+    await supabase.from("posts").upsert(
+      [
+        {
+          id: 1,
+          title: "[공지] ACKR Portal 오픈 안내",
+          content:
+            "안녕하세요, ASUS 직원 여러분.\n\nACKR Portal이 오픈되었습니다. 이 포털은 ASUS 직원들 간의 정보 공유와 소통을 위한 공간입니다.\n\n주요 기능:\n- 각 부서별 전용 게시판\n- 기술 문서 라이브러리\n- 실시간 메시징\n- 알림 시스템\n\n많은 이용 부탁드립니다.",
+          board_id: 1,
+          user_id: adminId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: 2,
+          title: "[공지] 시스템 점검 안내",
+          content:
+            "안녕하세요, ASUS 직원 여러분.\n\n시스템 점검으로 인해 다음 주 토요일 오전 2시부터 4시까지 서비스 이용이 제한됩니다.\n\n점검 내용:\n- 서버 업그레이드\n- 보안 패치 적용\n- 데이터베이스 최적화\n\n양해 부탁드립니다.",
+          board_id: 1,
+          user_id: adminId,
+          created_at: new Date(Date.now() - 86400000).toISOString(), // 1일 전
+          updated_at: new Date(Date.now() - 86400000).toISOString(),
+        },
+      ],
+      { onConflict: "id" },
+    )
+
+    // FAE 게시글
+    await supabase.from("posts").upsert(
+      [
+        {
+          id: 3,
+          title: "A100 시리즈 기술 업데이트",
+          content:
+            "A100 시리즈의 최신 펌웨어 업데이트가 릴리스되었습니다.\n\n주요 변경사항:\n- 성능 최적화\n- 버그 수정\n- 새로운 기능 추가\n\n자세한 내용은 첨부된 문서를 참조하세요.",
+          board_id: 2,
+          user_id: adminId,
+          created_at: new Date(Date.now() - 172800000).toISOString(), // 2일 전
+          updated_at: new Date(Date.now() - 172800000).toISOString(),
+        },
+        {
+          id: 4,
+          title: "B200 시리즈 호환성 가이드",
+          content:
+            "B200 시리즈와 호환되는 제품 목록과 설정 가이드입니다.\n\n호환 제품:\n- C300 시리즈\n- D100 시리즈\n- E500 시리즈\n\n설정 방법은 첨부된 문서를 참조하세요.",
+          board_id: 3,
+          user_id: adminId,
+          created_at: new Date(Date.now() - 259200000).toISOString(), // 3일 전
+          updated_at: new Date(Date.now() - 259200000).toISOString(),
+        },
+      ],
+      { onConflict: "id" },
+    )
+
+    // Sales 게시글
+    await supabase.from("posts").upsert(
+      [
+        {
+          id: 5,
+          title: "2023년 4분기 판매 전략",
+          content:
+            "2023년 4분기 판매 전략에 대한 내용입니다.\n\n주요 포인트:\n- 타겟 시장 분석\n- 경쟁사 동향\n- 프로모션 계획\n\n자세한 내용은 회의에서 논의하겠습니다.",
+          board_id: 4,
+          user_id: adminId,
+          created_at: new Date(Date.now() - 345600000).toISOString(), // 4일 전
+          updated_at: new Date(Date.now() - 345600000).toISOString(),
+        },
+        {
+          id: 6,
+          title: "신규 고객 대응 가이드",
+          content:
+            "신규 고객 대응을 위한 가이드라인입니다.\n\n주요 내용:\n- 초기 미팅 준비\n- 제품 소개 방법\n- 가격 협상 전략\n- 사후 관리 방안\n\n모든 영업팀은 이 가이드라인을 숙지해주세요.",
+          board_id: 5,
+          user_id: adminId,
+          created_at: new Date(Date.now() - 432000000).toISOString(), // 5일 전
+          updated_at: new Date(Date.now() - 432000000).toISOString(),
+        },
+      ],
+      { onConflict: "id" },
+    )
+
+    // Marketing 게시글
+    await supabase.from("posts").upsert(
+      [
+        {
+          id: 7,
+          title: "신제품 출시 마케팅 계획",
+          content:
+            "다가오는 신제품 출시를 위한 마케팅 계획입니다.\n\n주요 일정:\n- 티저 캠페인: 10월 1일\n- 소셜미디어 홍보: 10월 10일\n- 공식 출시 이벤트: 10월 15일\n\n각 팀별 역할과 책임은 첨부 문서를 참조하세요.",
+          board_id: 6,
+          user_id: adminId,
+          created_at: new Date(Date.now() - 518400000).toISOString(), // 6일 전
+          updated_at: new Date(Date.now() - 518400000).toISOString(),
+        },
+        {
+          id: 8,
+          title: "브랜드 가이드라인 업데이트",
+          content:
+            "브랜드 가이드라인이 업데이트되었습니다.\n\n주요 변경사항:\n- 로고 사용 규정\n- 컬러 팔레트 추가\n- 폰트 가이드라인 변경\n\n모든 마케팅 자료는 새 가이드라인을 따라주세요.",
+          board_id: 7,
+          user_id: adminId,
+          created_at: new Date(Date.now() - 604800000).toISOString(), // 7일 전
+          updated_at: new Date(Date.now() - 604800000).toISOString(),
+        },
+      ],
+      { onConflict: "id" },
+    )
+
+    // 4. 테스트 댓글 추가
+    await supabase.from("comments").upsert(
+      [
+        {
+          id: 1,
+          content: "포털 오픈을 축하합니다! 많은 도움이 될 것 같습니다.",
+          post_id: 1,
+          user_id: adminId,
+          created_at: new Date(Date.now() - 43200000).toISOString(), // 12시간 전
+          updated_at: new Date(Date.now() - 43200000).toISOString(),
+        },
+        {
+          id: 2,
+          content: "시스템 점검 일정 확인했습니다. 감사합니다.",
+          post_id: 2,
+          user_id: adminId,
+          created_at: new Date(Date.now() - 64800000).toISOString(), // 18시간 전
+          updated_at: new Date(Date.now() - 64800000).toISOString(),
+        },
+        {
+          id: 3,
+          content: "업데이트 내용 잘 봤습니다. 추가 질문이 있는데 연락 가능할까요?",
+          post_id: 3,
+          user_id: adminId,
+          created_at: new Date(Date.now() - 129600000).toISOString(), // 36시간 전
+          updated_at: new Date(Date.now() - 129600000).toISOString(),
+        },
+      ],
+      { onConflict: "id" },
+    )
+
+    return NextResponse.json({ success: true, message: "테스트 데이터가 성공적으로 추가되었습니다." })
+  } catch (error) {
+    console.error("Seed error:", error)
+    return NextResponse.json({ success: false, error: "테스트 데이터 추가 중 오류가 발생했습니다." }, { status: 500 })
+  }
+}

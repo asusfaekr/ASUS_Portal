@@ -2,22 +2,38 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { supabase } from "@/lib/supabase"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<"login" | "register">("login")
+  const searchParams = useSearchParams()
+
+  // URL 파라미터 확인
+  useEffect(() => {
+    const verified = searchParams.get("verified")
+    const error = searchParams.get("error")
+
+    if (verified === "true") {
+      setMessage({ type: "success", text: "이메일 인증이 완료되었습니다. 이제 로그인할 수 있습니다." })
+    } else if (error === "verification_failed") {
+      setMessage({ type: "error", text: "이메일 인증에 실패했습니다. 다시 시도해주세요." })
+    } else if (error === "invalid_token") {
+      setMessage({ type: "error", text: "유효하지 않은 인증 토큰입니다." })
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,13 +41,42 @@ export function LoginForm() {
     setMessage(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // 로그인 시도
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) {
-        setMessage({ type: "error", text: error.message })
+      if (signInError) {
+        setMessage({ type: "error", text: signInError.message })
+        setLoading(false)
+        return
+      }
+
+      // 사용자 ID로 인증 상태 확인
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("is_verified")
+        .eq("id", signInData.user.id)
+        .single()
+
+      if (userError) {
+        setMessage({ type: "error", text: "사용자 정보를 확인할 수 없습니다." })
+        // 로그아웃 처리
+        await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+
+      // 이메일 인증이 완료되지 않은 경우
+      if (!userData.is_verified) {
+        setMessage({
+          type: "error",
+          text: "이메일 인증이 완료되지 않았습니다. 받은 메일함을 확인하고 인증 링크를 클릭해주세요.",
+        })
+        // 로그아웃 처리
+        await supabase.auth.signOut()
+        setLoading(false)
         return
       }
 
@@ -63,7 +108,7 @@ export function LoginForm() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/api/auth/verify`,
           data: {
             full_name: "",
             company: "ASUS",
@@ -123,7 +168,9 @@ export function LoginForm() {
   return (
     <div className="space-y-4">
       {message && (
-        <Alert variant={message.type === "error" ? "destructive" : "default"}>
+        <Alert variant={message.type === "error" ? "destructive" : message.type === "success" ? "default" : "default"}>
+          {message.type === "success" && <CheckCircle className="h-4 w-4 mr-2" />}
+          {message.type === "error" && <AlertCircle className="h-4 w-4 mr-2" />}
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       )}
@@ -165,6 +212,7 @@ export function LoginForm() {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {loading ? "처리 중..." : "로그인"}
             </Button>
           </form>
@@ -199,6 +247,7 @@ export function LoginForm() {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {loading ? "처리 중..." : "회원가입"}
             </Button>
           </form>
