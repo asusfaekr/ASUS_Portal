@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useAuth } from "@/components/auth-provider"
 import { supabase } from "@/lib/supabase"
-import { Loader2 } from "lucide-react"
+import { Loader2, ThumbsUp } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface CommentSectionProps {
@@ -19,6 +19,7 @@ export function CommentSection({ postId, initialComments = [] }: CommentSectionP
   const [comments, setComments] = useState(initialComments)
   const [newComment, setNewComment] = useState("")
   const [loading, setLoading] = useState(false)
+  const [likeLoading, setLikeLoading] = useState<number | null>(null)
   const router = useRouter()
 
   const handleSubmitComment = async (e) => {
@@ -46,13 +47,80 @@ export function CommentSection({ postId, initialComments = [] }: CommentSectionP
         return
       }
 
-      setComments([data, ...comments])
+      // 새 댓글에 좋아요 정보 추가
+      const newCommentWithLikes = {
+        ...data,
+        likesCount: 0,
+        userLiked: false,
+      }
+
+      setComments([newCommentWithLikes, ...comments])
       setNewComment("")
       router.refresh()
     } catch (error) {
       console.error("Error:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleLikeComment = async (commentId, index) => {
+    if (!user) {
+      router.push("/login")
+      return
+    }
+
+    setLikeLoading(commentId)
+    try {
+      const comment = comments[index]
+
+      if (comment.userLiked) {
+        // 좋아요 취소
+        const { error } = await supabase
+          .from("comment_likes")
+          .delete()
+          .eq("comment_id", commentId)
+          .eq("user_id", user.id)
+
+        if (error) {
+          console.error("Error removing comment like:", error)
+          return
+        }
+
+        // 댓글 목록 업데이트
+        const updatedComments = [...comments]
+        updatedComments[index] = {
+          ...comment,
+          likesCount: comment.likesCount - 1,
+          userLiked: false,
+        }
+        setComments(updatedComments)
+      } else {
+        // 좋아요 추가
+        const { error } = await supabase.from("comment_likes").insert({
+          comment_id: commentId,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+        })
+
+        if (error) {
+          console.error("Error adding comment like:", error)
+          return
+        }
+
+        // 댓글 목록 업데이트
+        const updatedComments = [...comments]
+        updatedComments[index] = {
+          ...comment,
+          likesCount: comment.likesCount + 1,
+          userLiked: true,
+        }
+        setComments(updatedComments)
+      }
+    } catch (error) {
+      console.error("Error:", error)
+    } finally {
+      setLikeLoading(null)
     }
   }
 
@@ -105,7 +173,7 @@ export function CommentSection({ postId, initialComments = [] }: CommentSectionP
 
       <div className="space-y-6">
         {comments.length > 0 ? (
-          comments.map((comment) => (
+          comments.map((comment, index) => (
             <div key={comment.id} className="border-b pb-6">
               <div className="flex gap-4">
                 <Avatar className="h-10 w-10">
@@ -121,8 +189,19 @@ export function CommentSection({ postId, initialComments = [] }: CommentSectionP
                   </div>
                   <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
                   <div className="flex gap-4 pt-2">
-                    <Button variant="ghost" size="sm" className="h-8 px-2">
-                      좋아요
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-8 px-2 ${comment.userLiked ? "text-blue-600" : ""}`}
+                      onClick={() => handleLikeComment(comment.id, index)}
+                      disabled={likeLoading === comment.id}
+                    >
+                      {likeLoading === comment.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ThumbsUp className={`mr-2 h-4 w-4 ${comment.userLiked ? "fill-current" : ""}`} />
+                      )}
+                      좋아요 {comment.likesCount > 0 ? comment.likesCount : ""}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-8 px-2">
                       답글

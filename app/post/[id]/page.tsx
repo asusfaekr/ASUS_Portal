@@ -53,7 +53,8 @@ export default function PostDetailPage() {
           .from("comments")
           .select(`
             *,
-            users:user_id (*)
+            users:user_id (*),
+            likes:comment_likes(count)
           `)
           .eq("post_id", params.id)
           .order("created_at", { ascending: false })
@@ -61,10 +62,42 @@ export default function PostDetailPage() {
         if (commentsError) {
           console.error("Error fetching comments:", commentsError)
         } else {
-          setComments(commentsData || [])
+          // 각 댓글에 대한 좋아요 수와 사용자 좋아요 여부 추가
+          const commentsWithLikes = await Promise.all(
+            (commentsData || []).map(async (comment) => {
+              // 댓글 좋아요 수 가져오기
+              const { count, error: likesError } = await supabase
+                .from("comment_likes")
+                .select("*", { count: "exact" })
+                .eq("comment_id", comment.id)
+
+              // 사용자가 댓글에 좋아요 했는지 확인
+              let userLikedComment = false
+              if (user) {
+                const { data: userLikeData, error: userLikeError } = await supabase
+                  .from("comment_likes")
+                  .select("*")
+                  .eq("comment_id", comment.id)
+                  .eq("user_id", user.id)
+                  .single()
+
+                if (!userLikeError && userLikeData) {
+                  userLikedComment = true
+                }
+              }
+
+              return {
+                ...comment,
+                likesCount: count || 0,
+                userLiked: userLikedComment,
+              }
+            }),
+          )
+
+          setComments(commentsWithLikes)
         }
 
-        // 좋아요 수 가져오기
+        // 게시글 좋아요 수 가져오기
         const { count, error: likesError } = await supabase
           .from("likes")
           .select("*", { count: "exact" })

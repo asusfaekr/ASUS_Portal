@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const type = requestUrl.searchParams.get("type")
 
   // 이메일 인증 토큰이 있는지 확인
-  if (!token || type !== "email") {
+  if (!token) {
     return NextResponse.redirect(`${requestUrl.origin}/login?error=invalid_token`)
   }
 
@@ -36,6 +36,7 @@ export async function GET(request: Request) {
 
       if (updateError) {
         console.error("Update verification status error:", updateError)
+        return NextResponse.redirect(`${requestUrl.origin}/login?error=verification_update_failed`)
       }
     }
 

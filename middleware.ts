@@ -29,9 +29,6 @@ export async function middleware(req: NextRequest) {
       "/profile",
       "/post",
       "/tech-library",
-      "/dashboard",
-      "/messages",
-      "/notifications",
     ]
 
     const isProtectedRoute = protectedRoutes.some(
@@ -47,21 +44,29 @@ export async function middleware(req: NextRequest) {
 
     // 역할 기반 접근 제어 및 이메일 인증 확인
     if (session) {
-      try {
-        // 사용자 정보 가져오기 (역할 및 인증 상태)
-        const { data: userData } = await supabase
-          .from("users")
-          .select("role_id, is_verified")
-          .eq("id", session.user.id)
-          .single()
+      // 사용자 정보 가져오기 (역할 및 인증 상태)
+      const { data: userData, error } = await supabase
+        .from("users")
+        .select("role_id, is_verified")
+        .eq("id", session.user.id)
+        .single()
 
-        // 이메일 인증이 완료되지 않은 경우 로그인 페이지로 리다이렉트
-        if (!userData?.is_verified && req.nextUrl.pathname !== "/login") {
-          await supabase.auth.signOut() // 세션 종료
-          return NextResponse.redirect(new URL("/login?error=not_verified", req.url))
-        }
+      // 사용자 정보를 가져오는 데 실패한 경우 (예: 데이터베이스 오류)
+      if (error) {
+        console.error("Error fetching user data:", error)
+        // 오류가 발생해도 기본적으로 접근을 허용합니다.
+        return res
+      }
 
-        const userRoleId = userData?.role_id
+      // 이메일 인증이 완료되지 않은 경우 로그인 페이지로 리다이렉트
+      if (userData && !userData.is_verified && req.nextUrl.pathname !== "/login") {
+        await supabase.auth.signOut() // 세션 종료
+        return NextResponse.redirect(new URL("/login?error=not_verified", req.url))
+      }
+
+      // 역할 기반 접근 제어
+      if (userData) {
+        const userRoleId = userData.role_id
 
         // 현재 경로에 대한 역할 제한 확인
         for (const [path, allowedRoles] of Object.entries(roleRestrictedPaths)) {
@@ -72,9 +77,6 @@ export async function middleware(req: NextRequest) {
             }
           }
         }
-      } catch (error) {
-        console.error("Error fetching user role:", error)
-        // 오류 발생 시 기본적으로 접근 허용 (보안 정책에 따라 변경 가능)
       }
     }
 

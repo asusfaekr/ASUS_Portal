@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 사용자 정보 가져오기
   const fetchUserProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase.from("users").select("*, roles(*)").eq("id", userId).single()
+      const { data, error } = await supabase.from("users").select("*").eq("id", userId).single()
 
       if (error) {
         console.error("Error fetching user profile:", error)
@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               full_name: authUser.user_metadata.full_name || "",
               company: authUser.user_metadata.company || "",
               position: authUser.user_metadata.position || "",
-              is_verified: true,
+              is_verified: false,
               is_active: true,
             })
             .select()
@@ -91,33 +91,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 인증 상태 변경 감지
   useEffect(() => {
     const initializeAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setSession(session)
-
-      if (session?.user?.id) {
-        await fetchUserProfile(session.user.id)
-      }
-
-      setLoading(false)
-
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange(async (event, session) => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
         setSession(session)
 
         if (session?.user?.id) {
           await fetchUserProfile(session.user.id)
-        } else {
-          setUser(null)
         }
 
-        router.refresh()
-      })
+        setLoading(false)
 
-      return () => {
-        subscription.unsubscribe()
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange(async (event, session) => {
+          setSession(session)
+
+          if (session?.user?.id) {
+            await fetchUserProfile(session.user.id)
+          } else {
+            setUser(null)
+          }
+
+          router.refresh()
+        })
+
+        return () => {
+          subscription.unsubscribe()
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error)
+        setLoading(false)
       }
     }
 

@@ -2,27 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import {
-  Bell,
-  Home,
-  LogOut,
-  MessageSquare,
-  Search,
-  User,
-  BarChart,
-  Settings,
-  PlusCircle,
-  FileText,
-  LayoutDashboard,
-} from "lucide-react"
+import { Bell, Home, LogOut, MessageSquare, Search, User, BarChart, Settings, PlusCircle, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/components/auth-provider"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { SearchDialog } from "./search-dialog"
-import { NotificationsPopover } from "./notifications-popover"
-import { MessagesPopover } from "./messages-popover"
 
 export function Header() {
   const pathname = usePathname()
@@ -62,15 +48,6 @@ export function Header() {
               >
                 <Home className="h-5 w-5" />
                 <span>Home</span>
-              </Link>
-              <Link
-                href="/dashboard"
-                className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
-                  pathname.startsWith("/dashboard") ? "text-[#0a66c2] border-b-2 border-[#0a66c2]" : ""
-                }`}
-              >
-                <LayoutDashboard className="h-5 w-5" />
-                <span>대시보드</span>
               </Link>
               <Link
                 href="/announcements"
@@ -135,8 +112,6 @@ export function Header() {
 
             {user ? (
               <>
-                <NotificationsPopover />
-                <MessagesPopover />
                 <Button
                   variant="default"
                   size="sm"

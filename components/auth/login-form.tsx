@@ -25,6 +25,7 @@ export function LoginForm() {
   useEffect(() => {
     const verified = searchParams.get("verified")
     const error = searchParams.get("error")
+    const redirectedFrom = searchParams.get("redirectedFrom")
 
     if (verified === "true") {
       setMessage({ type: "success", text: "이메일 인증이 완료되었습니다. 이제 로그인할 수 있습니다." })
@@ -32,6 +33,13 @@ export function LoginForm() {
       setMessage({ type: "error", text: "이메일 인증에 실패했습니다. 다시 시도해주세요." })
     } else if (error === "invalid_token") {
       setMessage({ type: "error", text: "유효하지 않은 인증 토큰입니다." })
+    } else if (error === "verification_update_failed") {
+      setMessage({ type: "error", text: "인증 상태 업데이트에 실패했습니다. 관리자에게 문의하세요." })
+    } else if (error === "not_verified") {
+      setMessage({
+        type: "error",
+        text: "이메일 인증이 완료되지 않았습니다. 받은 메일함을 확인하고 인증 링크를 클릭해주세요.",
+      })
     }
   }, [searchParams])
 
@@ -81,12 +89,12 @@ export function LoginForm() {
       }
 
       // 로그인 성공 시 홈으로 이동
-      router.push("/")
+      const redirectTo = searchParams.get("redirectedFrom") || "/"
+      router.push(redirectTo)
       router.refresh()
     } catch (error) {
       console.error("Login error:", error)
       setMessage({ type: "error", text: "로그인 중 오류가 발생했습니다." })
-    } finally {
       setLoading(false)
     }
   }

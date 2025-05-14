@@ -1,4 +1,10 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export interface Database {
   public: {
@@ -182,3 +188,6 @@ export interface Database {
 }
 
 export type User = Database["public"]["Tables"]["users"]["Row"]
+export type Board = Database["public"]["Tables"]["boards"]["Row"]
+export type Post = Database["public"]["Tables"]["posts"]["Row"]
+export type Comment = Database["public"]["Tables"]["comments"]["Row"]
