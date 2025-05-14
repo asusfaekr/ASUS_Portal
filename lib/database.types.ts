@@ -168,6 +168,46 @@ export interface Database {
           created_at?: string | null
         }
       }
+      comment_likes: {
+        Row: {
+          id: string
+          created_at: string | null
+          user_id: string
+          comment_id: number
+        }
+        Insert: {
+          id?: string
+          created_at?: string | null
+          user_id: string
+          comment_id: number
+        }
+        Update: {
+          id?: string
+          created_at?: string | null
+          user_id?: string
+          comment_id?: number
+        }
+      }
+      likes: {
+        Row: {
+          id: string
+          created_at: string | null
+          user_id: string
+          post_id: number
+        }
+        Insert: {
+          id?: string
+          created_at?: string | null
+          user_id: string
+          post_id: number
+        }
+        Update: {
+          id?: string
+          created_at?: string | null
+          user_id?: string
+          post_id?: number
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -186,3 +226,5 @@ export type User = Database["public"]["Tables"]["users"]["Row"]
 export type Board = Database["public"]["Tables"]["boards"]["Row"]
 export type Post = Database["public"]["Tables"]["posts"]["Row"]
 export type Comment = Database["public"]["Tables"]["comments"]["Row"]
+export type CommentLike = Database["public"]["Tables"]["comment_likes"]["Row"]
+export type Like = Database["public"]["Tables"]["likes"]["Row"]

@@ -30,64 +30,54 @@ export function RewardSystem() {
     }
   }, [user])
 
+  // 보상 시스템 컴포넌트의 데이터 가져오기 부분을 간소화합니다
+
   const fetchUserActivity = async () => {
     setLoading(true)
     try {
       // 사용자 게시글 가져오기
-      const { data: posts, error: postsError } = await supabase
+      const { data: posts } = await supabase
         .from("posts")
         .select(`
-          id, 
-          title, 
-          created_at,
-          boards:board_id (name)
-        `)
+        id, 
+        title, 
+        created_at,
+        boards:board_id (name)
+      `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(5)
 
-      if (postsError) {
-        console.error("Error fetching posts:", postsError)
-      } else {
-        setUserPosts(posts || [])
-      }
+      setUserPosts(posts || [])
 
       // 사용자 댓글 가져오기
-      const { data: comments, error: commentsError } = await supabase
+      const { data: comments } = await supabase
         .from("comments")
         .select(`
-          id, 
-          content, 
-          created_at,
-          posts:post_id (id, title)
-        `)
+        id, 
+        content, 
+        created_at,
+        posts:post_id (id, title)
+      `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(5)
 
-      if (commentsError) {
-        console.error("Error fetching comments:", commentsError)
-      } else {
-        setUserComments(comments || [])
-      }
+      setUserComments(comments || [])
 
       // 사용자가 좋아요 누른 게시글 가져오기
-      const { data: likes, error: likesError } = await supabase
+      const { data: likes } = await supabase
         .from("likes")
         .select(`
-          id, 
-          created_at,
-          posts:post_id (id, title, boards:board_id(name))
-        `)
+        id, 
+        created_at,
+        posts:post_id (id, title, boards:board_id(name))
+      `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(5)
 
-      if (likesError) {
-        console.error("Error fetching likes:", likesError)
-      } else {
-        setUserLikes(likes || [])
-      }
+      setUserLikes(likes || [])
 
       // 통계 정보 가져오기
       const { count: postsCount } = await supabase

@@ -73,49 +73,44 @@ export function CommentSection({ postId, initialComments = [] }: CommentSectionP
     setLikeLoading(commentId)
     try {
       const comment = comments[index]
+      const isLiked = comment.userLiked
 
-      if (comment.userLiked) {
-        // 좋아요 취소
-        const { error } = await supabase
-          .from("comment_likes")
-          .delete()
-          .eq("comment_id", commentId)
-          .eq("user_id", user.id)
+      if (isLiked) {
+        // 좋아요 취소 시도
+        try {
+          await supabase.from("comment_likes").delete().eq("comment_id", commentId).eq("user_id", user.id)
 
-        if (error) {
-          console.error("Error removing comment like:", error)
-          return
+          // 댓글 목록 업데이트
+          const updatedComments = [...comments]
+          updatedComments[index] = {
+            ...comment,
+            likesCount: Math.max(0, comment.likesCount - 1),
+            userLiked: false,
+          }
+          setComments(updatedComments)
+        } catch (error) {
+          console.error("Error removing like:", error)
         }
-
-        // 댓글 목록 업데이트
-        const updatedComments = [...comments]
-        updatedComments[index] = {
-          ...comment,
-          likesCount: comment.likesCount - 1,
-          userLiked: false,
-        }
-        setComments(updatedComments)
       } else {
-        // 좋아요 추가
-        const { error } = await supabase.from("comment_likes").insert({
-          comment_id: commentId,
-          user_id: user.id,
-          created_at: new Date().toISOString(),
-        })
+        // 좋아요 추가 시도
+        try {
+          await supabase.from("comment_likes").insert({
+            comment_id: commentId,
+            user_id: user.id,
+            created_at: new Date().toISOString(),
+          })
 
-        if (error) {
-          console.error("Error adding comment like:", error)
-          return
+          // 댓글 목록 업데이트
+          const updatedComments = [...comments]
+          updatedComments[index] = {
+            ...comment,
+            likesCount: (comment.likesCount || 0) + 1,
+            userLiked: true,
+          }
+          setComments(updatedComments)
+        } catch (error) {
+          console.error("Error adding like:", error)
         }
-
-        // 댓글 목록 업데이트
-        const updatedComments = [...comments]
-        updatedComments[index] = {
-          ...comment,
-          likesCount: comment.likesCount + 1,
-          userLiked: true,
-        }
-        setComments(updatedComments)
       }
     } catch (error) {
       console.error("Error:", error)

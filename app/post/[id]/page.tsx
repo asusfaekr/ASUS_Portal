@@ -34,10 +34,10 @@ export default function PostDetailPage() {
         const { data: postData, error: postError } = await supabase
           .from("posts")
           .select(`
-            *,
-            users:user_id (*),
-            boards:board_id (*)
-          `)
+          *,
+          users:user_id (*),
+          boards:board_id (*)
+        `)
           .eq("id", params.id)
           .single()
 
@@ -52,10 +52,9 @@ export default function PostDetailPage() {
         const { data: commentsData, error: commentsError } = await supabase
           .from("comments")
           .select(`
-            *,
-            users:user_id (*),
-            likes:comment_likes(count)
-          `)
+          *,
+          users:user_id (*)
+        `)
           .eq("post_id", params.id)
           .order("created_at", { ascending: false })
 
@@ -66,24 +65,21 @@ export default function PostDetailPage() {
           const commentsWithLikes = await Promise.all(
             (commentsData || []).map(async (comment) => {
               // 댓글 좋아요 수 가져오기
-              const { count, error: likesError } = await supabase
+              const { count } = await supabase
                 .from("comment_likes")
-                .select("*", { count: "exact" })
+                .select("*", { count: "exact", head: true })
                 .eq("comment_id", comment.id)
 
               // 사용자가 댓글에 좋아요 했는지 확인
               let userLikedComment = false
               if (user) {
-                const { data: userLikeData, error: userLikeError } = await supabase
+                const { data: userLikeData } = await supabase
                   .from("comment_likes")
-                  .select("*")
+                  .select("*", { head: true })
                   .eq("comment_id", comment.id)
                   .eq("user_id", user.id)
-                  .single()
 
-                if (!userLikeError && userLikeData) {
-                  userLikedComment = true
-                }
+                userLikedComment = !!userLikeData
               }
 
               return {
@@ -100,7 +96,7 @@ export default function PostDetailPage() {
         // 게시글 좋아요 수 가져오기
         const { count, error: likesError } = await supabase
           .from("likes")
-          .select("*", { count: "exact" })
+          .select("*", { count: "exact", head: true })
           .eq("post_id", params.id)
 
         if (!likesError) {
@@ -109,16 +105,13 @@ export default function PostDetailPage() {
 
         // 사용자가 좋아요 했는지 확인
         if (user) {
-          const { data: userLikeData, error: userLikeError } = await supabase
+          const { data: userLikeData } = await supabase
             .from("likes")
-            .select("*")
+            .select("*", { head: true })
             .eq("post_id", params.id)
             .eq("user_id", user.id)
-            .single()
 
-          if (!userLikeError && userLikeData) {
-            setUserLiked(true)
-          }
+          setUserLiked(!!userLikeData)
         }
       } catch (error) {
         setError("게시글을 불러오는 중 오류가 발생했습니다.")
