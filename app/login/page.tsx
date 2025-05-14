@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { LoginForm } from "@/components/auth/login-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -15,7 +16,9 @@ export default function LoginPage() {
           <CardDescription>계정에 로그인하여 포털에 참여하세요</CardDescription>
         </CardHeader>
         <CardContent>
-          <LoginForm />
+          <Suspense fallback={<div>로딩 중...</div>}>
+            <LoginForm />
+          </Suspense>
         </CardContent>
       </Card>
     </div>
