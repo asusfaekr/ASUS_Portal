@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Home, LogOut, MessageSquare, Search, User, BarChart, Settings, PlusCircle, FileText } from "lucide-react"
+import { Home, LogOut, MessageSquare, Search, Settings, PlusCircle, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/components/auth-provider"
@@ -36,7 +36,7 @@ export function Header() {
               <div className="w-8 h-8 bg-[#0a66c2] text-white flex items-center justify-center rounded font-bold">
                 in
               </div>
-              <span className="text-xl font-bold hidden md:inline-block">ACKR Portal</span>
+              <span className="text-xl font-bold hidden md:inline-block">ASUS Forum</span>
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -50,40 +50,18 @@ export function Header() {
                 <span>Home</span>
               </Link>
               <Link
-                href="/announcements"
+                href="/board"
                 className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
-                  isActive("/announcements") ? "text-[#0a66c2] border-b-2 border-[#0a66c2]" : ""
-                }`}
-              >
-                <Bell className="h-5 w-5" />
-                <span>공지</span>
-              </Link>
-              <Link
-                href="/fae-portal"
-                className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
-                  pathname.startsWith("/fae-portal") ? "text-[#0a66c2] border-b-2 border-[#0a66c2]" : ""
+                  pathname.startsWith("/board") ||
+                  pathname.startsWith("/fae-portal") ||
+                  pathname.startsWith("/sales-portal") ||
+                  pathname.startsWith("/marketing-portal")
+                    ? "text-[#0a66c2] border-b-2 border-[#0a66c2]"
+                    : ""
                 }`}
               >
                 <MessageSquare className="h-5 w-5" />
-                <span>FAE Portal</span>
-              </Link>
-              <Link
-                href="/sales-portal"
-                className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
-                  pathname.startsWith("/sales-portal") ? "text-[#0a66c2] border-b-2 border-[#0a66c2]" : ""
-                }`}
-              >
-                <User className="h-5 w-5" />
-                <span>Sales Portal</span>
-              </Link>
-              <Link
-                href="/marketing-portal"
-                className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
-                  pathname.startsWith("/marketing-portal") ? "text-[#0a66c2] border-b-2 border-[#0a66c2]" : ""
-                }`}
-              >
-                <BarChart className="h-5 w-5" />
-                <span>Marketing Portal</span>
+                <span>ASUS Forum</span>
               </Link>
               <Link
                 href="/tech-library"

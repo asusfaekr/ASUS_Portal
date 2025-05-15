@@ -9,8 +9,8 @@ import { AuthProvider } from "@/components/auth-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "ACKR Portal",
-  description: "A professional portal for ACKR users",
+  title: "ASUS Forum",
+  description: "A professional forum for ASUS users",
     generator: 'v0.dev'
 }
 
