@@ -90,8 +90,12 @@ export function LoginForm() {
 
       // 로그인 성공 시 홈으로 이동
       const redirectTo = searchParams.get("redirectedFrom") || "/"
-      router.push(redirectTo)
-      router.refresh()
+
+      // 세션 쿠키가 설정될 시간을 주기 위해 짧은 지연 추가
+      setTimeout(() => {
+        setLoading(false)
+        window.location.href = redirectTo // 전체 페이지 새로고침으로 변경
+      }, 500)
     } catch (error) {
       console.error("Login error:", error)
       setMessage({ type: "error", text: "로그인 중 오류가 발생했습니다." })

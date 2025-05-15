@@ -3,11 +3,12 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import { useAuth } from "@/components/auth-provider"
 import { useRouter } from "next/navigation"
+import { useAuth } from "./auth-provider"
+import { ShieldAlert } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { ShieldAlert } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 
 interface RoleGuardProps {
   children: React.ReactNode
@@ -16,31 +17,67 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ children, requiredRoles, redirectTo = "/login" }: RoleGuardProps) {
-  const { user, loading } = useAuth()
+  const { user, loading, session } = useAuth()
   const router = useRouter()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
+  const [checkingAuth, setCheckingAuth] = useState(true)
 
   useEffect(() => {
-    if (loading) return
+    const checkAuth = async () => {
+      try {
+        setCheckingAuth(true)
 
-    if (!user) {
-      router.push(`${redirectTo}?redirectedFrom=${window.location.pathname}`)
-      return
-    }
+        // 세션 직접 확인
+        const { data: sessionData } = await supabase.auth.getSession()
+        const currentSession = sessionData.session
 
-    // 특정 역할이 필요한 경우 확인
-    if (requiredRoles && requiredRoles.length > 0) {
-      if (!user.role_id || !requiredRoles.includes(user.role_id)) {
+        if (!currentSession) {
+          console.log("No session found in RoleGuard")
+          router.push(redirectTo)
+          return
+        }
+
+        // 사용자 정보 직접 가져오기
+        const { data: userData, error } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", currentSession.user.id)
+          .single()
+
+        if (error || !userData) {
+          console.error("Error fetching user data:", error)
+          setAuthorized(false)
+          return
+        }
+
+        // 이메일 인증 확인
+        if (!userData.is_verified) {
+          router.push("/login?error=not_verified")
+          return
+        }
+
+        // 역할 확인
+        if (requiredRoles && requiredRoles.length > 0) {
+          if (!userData.role_id || !requiredRoles.includes(userData.role_id)) {
+            setAuthorized(false)
+            return
+          }
+        }
+
+        setAuthorized(true)
+      } catch (error) {
+        console.error("Auth check error:", error)
         setAuthorized(false)
-        return
+      } finally {
+        setCheckingAuth(false)
       }
     }
 
-    setAuthorized(true)
-  }, [user, loading, requiredRoles, redirectTo, router])
+    checkAuth()
+  }, [router, redirectTo, requiredRoles])
 
   // 로딩 중
-  if (loading || authorized === null) {
+  if (loading || checkingAuth) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -49,7 +86,7 @@ export function RoleGuard({ children, requiredRoles, redirectTo = "/login" }: Ro
   }
 
   // 권한 없음
-  if (!authorized) {
+  if (authorized === false) {
     return (
       <div className="container py-10 max-w-3xl mx-auto">
         <Alert variant="destructive" className="mb-6">

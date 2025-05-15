@@ -27,6 +27,7 @@ export interface Database {
           name?: string
           description?: string | null
           created_at?: string | null
+          created_at?: string | null
         }
       }
       users: {
@@ -228,3 +229,4 @@ export interface Database {
 }
 
 export type User = Database["public"]["Tables"]["users"]["Row"]
+export type Database = Database

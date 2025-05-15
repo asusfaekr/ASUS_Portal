@@ -1,26 +1,25 @@
 import { Suspense } from "react"
 import { LoginForm } from "@/components/auth/login-form"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 bg-[#0a66c2] text-white flex items-center justify-center rounded font-bold text-xl">
-              in
+    <div className="container flex h-screen w-screen flex-col items-center justify-center">
+      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+        <div className="flex flex-col space-y-2 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">로그인</h1>
+          <p className="text-sm text-muted-foreground">이메일과 비밀번호를 입력하여 로그인하세요</p>
+        </div>
+        <Suspense
+          fallback={
+            <div className="flex justify-center p-4">
+              <Loader2 className="h-6 w-6 animate-spin" />
             </div>
-          </div>
-          <CardTitle className="text-2xl">ACKR Portal에 로그인</CardTitle>
-          <CardDescription>계정에 로그인하여 포털에 참여하세요</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Suspense fallback={<div>로딩 중...</div>}>
-            <LoginForm />
-          </Suspense>
-        </CardContent>
-      </Card>
+          }
+        >
+          <LoginForm />
+        </Suspense>
+      </div>
     </div>
   )
 }

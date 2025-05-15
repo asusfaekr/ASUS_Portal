@@ -4,11 +4,14 @@ import type { NextRequest } from "next/server"
 import { ROLES } from "./lib/constants"
 
 export async function middleware(req: NextRequest) {
+  // 응답 객체 생성
   const res = NextResponse.next()
 
   try {
+    // Supabase 클라이언트 생성
     const supabase = createMiddlewareClient({ req, res })
 
+    // 세션 가져오기
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -31,12 +34,17 @@ export async function middleware(req: NextRequest) {
       "/tech-library",
     ]
 
+    // 현재 경로가 보호된 경로인지 확인
     const isProtectedRoute = protectedRoutes.some(
       (route) => req.nextUrl.pathname.startsWith(route) || req.nextUrl.pathname === route,
     )
 
+    // 디버깅을 위한 로그
+    console.log(`Path: ${req.nextUrl.pathname}, Protected: ${isProtectedRoute}, Session: ${session ? "Yes" : "No"}`)
+
     // 로그인이 필요한 페이지에 접근하려는데 로그인이 안 되어 있으면 로그인 페이지로 리다이렉트
     if (isProtectedRoute && !session) {
+      console.log("No session found, redirecting to login")
       const redirectUrl = new URL("/login", req.url)
       redirectUrl.searchParams.set("redirectedFrom", req.nextUrl.pathname)
       return NextResponse.redirect(redirectUrl)
@@ -65,7 +73,7 @@ export async function middleware(req: NextRequest) {
       }
 
       // 역할 기반 접근 제어
-      if (userData) {
+      if (userData && isProtectedRoute) {
         const userRoleId = userData.role_id
 
         // 현재 경로에 대한 역할 제한 확인
@@ -78,18 +86,23 @@ export async function middleware(req: NextRequest) {
           }
         }
       }
+
+      // 세션 정보를 응답 헤더에 추가하여 클라이언트에서 사용할 수 있도록 함
+      res.headers.set("x-user-authenticated", "true")
+      res.headers.set("x-user-id", session.user.id)
     }
 
     // 이미 로그인한 사용자가 로그인 페이지에 접근하면 홈으로 리다이렉트
     if ((req.nextUrl.pathname === "/login" || req.nextUrl.pathname === "/register") && session) {
       return NextResponse.redirect(new URL("/", req.url))
     }
+
+    return res
   } catch (error) {
     console.error("Middleware error:", error)
     // 미들웨어 오류 시 기본 응답 반환
+    return res
   }
-
-  return res
 }
 
 export const config = {

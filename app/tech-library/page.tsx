@@ -1,14 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, FileText, Download, Calendar, User } from "lucide-react"
+import { Search, FileText, Download, Calendar, User, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { RoleGuard } from "@/components/role-guard"
+import { supabase } from "@/lib/supabase"
 
 // 임시 문서 데이터
 const documents = [
@@ -81,6 +81,31 @@ export default function TechLibraryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeCategory, setActiveCategory] = useState("전체")
   const router = useRouter()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (!session) {
+          router.push("/login?redirectedFrom=/tech-library")
+          return
+        }
+
+        setIsAuthenticated(true)
+      } catch (error) {
+        console.error("Auth check error:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    checkAuth()
+  }, [router])
 
   // 검색 및 필터링된 문서 목록
   const filteredDocuments = documents.filter((doc) => {
@@ -101,92 +126,102 @@ export default function TechLibraryPage() {
     alert(`${doc.title} 다운로드를 시작합니다.`)
   }
 
-  return (
-    <RoleGuard>
-      <div className="container py-10">
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-2xl">기술 문서 라이브러리</CardTitle>
-            <CardDescription>제품 관련 기술 문서, 가이드 및 참조 자료</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4 mb-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="문서 검색..."
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Button onClick={() => router.push("/tech-library/upload")}>문서 업로드</Button>
-            </div>
-
-            <Tabs defaultValue="전체" value={activeCategory} onValueChange={setActiveCategory}>
-              <TabsList className="mb-6 flex flex-wrap h-auto">
-                {categories.map((category) => (
-                  <TabsTrigger key={category} value={category}>
-                    {category}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
-              <TabsContent value={activeCategory} className="mt-0">
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredDocuments.length > 0 ? (
-                    filteredDocuments.map((doc) => (
-                      <Card key={doc.id} className="overflow-hidden">
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between items-start">
-                            <Badge>{doc.category}</Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => handleDownload(e, doc)}
-                            >
-                              <Download className="h-4 w-4" />
-                              <span className="sr-only">다운로드</span>
-                            </Button>
-                          </div>
-                          <CardTitle className="text-lg mt-2">{doc.title}</CardTitle>
-                          <CardDescription className="line-clamp-2">{doc.description}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            {doc.tags.map((tag, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <div className="flex items-center">
-                              <Calendar className="mr-1 h-3 w-3" />
-                              {doc.date}
-                            </div>
-                            <div className="flex items-center">
-                              <User className="mr-1 h-3 w-3" />
-                              {doc.author}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="col-span-full text-center py-12 text-muted-foreground">
-                      <FileText className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
-                      <p>검색 결과가 없습니다.</p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    </RoleGuard>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return null // 인증되지 않은 경우 미들웨어에서 리다이렉트 처리
+  }
+
+  return (
+    <div className="container py-10">
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-2xl">기술 문서 라이브러리</CardTitle>
+          <CardDescription>제품 관련 기술 문서, 가이드 및 참조 자료</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="문서 검색..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button onClick={() => router.push("/tech-library/upload")}>문서 업로드</Button>
+          </div>
+
+          <Tabs defaultValue="전체" value={activeCategory} onValueChange={setActiveCategory}>
+            <TabsList className="mb-6 flex flex-wrap h-auto">
+              {categories.map((category) => (
+                <TabsTrigger key={category} value={category}>
+                  {category}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <TabsContent value={activeCategory} className="mt-0">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredDocuments.length > 0 ? (
+                  filteredDocuments.map((doc) => (
+                    <Card key={doc.id} className="overflow-hidden">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <Badge>{doc.category}</Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => handleDownload(e, doc)}
+                          >
+                            <Download className="h-4 w-4" />
+                            <span className="sr-only">다운로드</span>
+                          </Button>
+                        </div>
+                        <CardTitle className="text-lg mt-2">{doc.title}</CardTitle>
+                        <CardDescription className="line-clamp-2">{doc.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {doc.tags.map((tag, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center">
+                            <Calendar className="mr-1 h-3 w-3" />
+                            {doc.date}
+                          </div>
+                          <div className="flex items-center">
+                            <User className="mr-1 h-3 w-3" />
+                            {doc.author}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12 text-muted-foreground">
+                    <FileText className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
+                    <p>검색 결과가 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
