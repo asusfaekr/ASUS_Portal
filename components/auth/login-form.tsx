@@ -88,13 +88,12 @@ export function LoginForm() {
         return
       }
 
-      // 로그인 성공 시 홈으로 이동
-      const redirectTo = searchParams.get("redirectedFrom") || "/"
+      // 로그인 성공 시 항상 홈으로 이동
+      console.log("Login successful, redirecting to home")
 
       // 세션 쿠키가 설정될 시간을 주기 위해 짧은 지연 추가
       setTimeout(() => {
-        setLoading(false)
-        window.location.href = redirectTo // 전체 페이지 새로고침으로 변경
+        window.location.href = "/" // 항상 홈으로 이동
       }, 500)
     } catch (error) {
       console.error("Login error:", error)

@@ -16,6 +16,17 @@ export async function middleware(req: NextRequest) {
       data: { session },
     } = await supabase.auth.getSession()
 
+    // 세션 정보를 응답 헤더에 추가하여 클라이언트에서 사용할 수 있도록 함
+    if (session) {
+      res.headers.set("x-user-authenticated", "true")
+      res.headers.set("x-user-id", session.user.id)
+    }
+
+    // 이미 로그인한 사용자가 로그인 페이지에 접근하면 홈으로 리다이렉트
+    if ((req.nextUrl.pathname === "/login" || req.nextUrl.pathname === "/register") && session) {
+      return NextResponse.redirect(new URL("/", req.url))
+    }
+
     // 역할별 접근 제한 경로
     const roleRestrictedPaths = {
       "/fae-portal": [ROLES.FAE],
@@ -38,9 +49,6 @@ export async function middleware(req: NextRequest) {
     const isProtectedRoute = protectedRoutes.some(
       (route) => req.nextUrl.pathname.startsWith(route) || req.nextUrl.pathname === route,
     )
-
-    // 디버깅을 위한 로그
-    console.log(`Path: ${req.nextUrl.pathname}, Protected: ${isProtectedRoute}, Session: ${session ? "Yes" : "No"}`)
 
     // 로그인이 필요한 페이지에 접근하려는데 로그인이 안 되어 있으면 로그인 페이지로 리다이렉트
     if (isProtectedRoute && !session) {
@@ -86,15 +94,6 @@ export async function middleware(req: NextRequest) {
           }
         }
       }
-
-      // 세션 정보를 응답 헤더에 추가하여 클라이언트에서 사용할 수 있도록 함
-      res.headers.set("x-user-authenticated", "true")
-      res.headers.set("x-user-id", session.user.id)
-    }
-
-    // 이미 로그인한 사용자가 로그인 페이지에 접근하면 홈으로 리다이렉트
-    if ((req.nextUrl.pathname === "/login" || req.nextUrl.pathname === "/register") && session) {
-      return NextResponse.redirect(new URL("/", req.url))
     }
 
     return res

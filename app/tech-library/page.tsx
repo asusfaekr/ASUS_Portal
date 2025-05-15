@@ -87,19 +87,43 @@ export default function TechLibraryPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // 세션 직접 확인
         const {
           data: { session },
         } = await supabase.auth.getSession()
 
         if (!session) {
+          console.log("No session found in TechLibraryPage")
+          // 세션이 없는 경우에만 리다이렉트
           router.push("/login?redirectedFrom=/tech-library")
           return
         }
 
+        // 사용자 정보 직접 가져오기
+        const { data: userData, error } = await supabase
+          .from("users")
+          .select("is_verified")
+          .eq("id", session.user.id)
+          .single()
+
+        if (error || !userData) {
+          console.error("Error fetching user data:", error)
+          setIsAuthenticated(false)
+          setLoading(false)
+          return
+        }
+
+        // 이메일 인증 확인
+        if (!userData.is_verified) {
+          router.push("/login?error=not_verified")
+          return
+        }
+
         setIsAuthenticated(true)
+        setLoading(false)
       } catch (error) {
         console.error("Auth check error:", error)
-      } finally {
+        setIsAuthenticated(false)
         setLoading(false)
       }
     }

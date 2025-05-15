@@ -33,6 +33,7 @@ export function RoleGuard({ children, requiredRoles, redirectTo = "/login" }: Ro
 
         if (!currentSession) {
           console.log("No session found in RoleGuard")
+          // 세션이 없는 경우에만 리다이렉트
           router.push(redirectTo)
           return
         }
