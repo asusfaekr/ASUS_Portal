@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Search, MessageSquare, ThumbsUp, PlusCircle, Loader2 } from "lucide-react"
+import { Search, MessageSquare, ThumbsUp, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/components/auth-provider"
 import { useRouter } from "next/navigation"
@@ -20,6 +20,7 @@ interface ForumPostsProps {
   showFilters?: boolean // 필터와 검색 표시 여부
   simplifiedCategories?: boolean // 간소화된 카테고리 메뉴 사용 여부
   showSortTabs?: boolean // 정렬 탭(최신, 인기, 활발한 토론) 표시 여부
+  initialSearchQuery?: string // 추가
 }
 
 export function ForumPosts({
@@ -27,12 +28,13 @@ export function ForumPosts({
   showFilters = true,
   simplifiedCategories = true,
   showSortTabs = true,
+  initialSearchQuery = "", // 추가
 }: ForumPostsProps) {
   const [selectedPost, setSelectedPost] = useState(null)
   const [activeTab, setActiveTab] = useState("latest")
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery)
   const [categoryFilter, setCategoryFilter] = useState(defaultCategory)
   const [showCreatePost, setShowCreatePost] = useState(false)
   const [boards, setBoards] = useState([])
@@ -48,6 +50,12 @@ export function ForumPosts({
   useEffect(() => {
     fetchPosts(categoryFilter)
   }, [activeTab, categoryFilter])
+
+  useEffect(() => {
+    if (initialSearchQuery) {
+      handleSearch(new Event("submit") as any)
+    }
+  }, [initialSearchQuery])
 
   const fetchBoards = async () => {
     try {
@@ -246,9 +254,7 @@ export function ForumPosts({
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">{getCategoryTitle()}</h2>
-          <Button className="bg-[#0a66c2] hover:bg-[#004182]" onClick={handleCreatePost}>
-            <PlusCircle className="mr-2 h-4 w-4" />새 글 작성
-          </Button>
+          {/* 새 글 작성 버튼 제거 */}
         </div>
 
         {/* 간소화된 카테고리 선택기 */}
