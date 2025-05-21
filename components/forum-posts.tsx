@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/components/auth-provider"
 import { useRouter } from "next/navigation"
 import { PostDetail } from "@/components/post-detail"
+import { CreatePostPanel } from "@/components/create-post-panel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface ForumPostsProps {
@@ -33,17 +34,33 @@ export function ForumPosts({
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState(defaultCategory)
+  const [showCreatePost, setShowCreatePost] = useState(false)
+  const [boards, setBoards] = useState([])
   const { user } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     setCategoryFilter(defaultCategory)
     fetchPosts(defaultCategory)
+    fetchBoards()
   }, [defaultCategory])
 
   useEffect(() => {
     fetchPosts(categoryFilter)
   }, [activeTab, categoryFilter])
+
+  const fetchBoards = async () => {
+    try {
+      const { data, error } = await supabase.from("boards").select("*")
+      if (error) {
+        console.error("Error fetching boards:", error)
+        return
+      }
+      setBoards(data || [])
+    } catch (error) {
+      console.error("Error:", error)
+    }
+  }
 
   const fetchPosts = async (category) => {
     setLoading(true)
@@ -154,10 +171,21 @@ export function ForumPosts({
 
   const handlePostSelect = (post) => {
     setSelectedPost(post)
+    setShowCreatePost(false)
     // 모바일에서는 상세 페이지로 이동
     if (window.innerWidth < 768) {
       router.push(`/post/${post.id}`)
     }
+  }
+
+  const handleCreatePost = () => {
+    setShowCreatePost(true)
+    setSelectedPost(null)
+  }
+
+  const handlePostCreated = () => {
+    fetchPosts(categoryFilter)
+    setShowCreatePost(false)
   }
 
   const formatDate = (dateString) => {
@@ -218,7 +246,7 @@ export function ForumPosts({
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">{getCategoryTitle()}</h2>
-          <Button className="bg-[#0a66c2] hover:bg-[#004182]" onClick={() => router.push("/create-post")}>
+          <Button className="bg-[#0a66c2] hover:bg-[#004182]" onClick={handleCreatePost}>
             <PlusCircle className="mr-2 h-4 w-4" />새 글 작성
           </Button>
         </div>
@@ -325,8 +353,14 @@ export function ForumPosts({
       </div>
 
       <div className="hidden md:block sticky top-20 h-fit">
-        {selectedPost ? (
-          <PostDetail post={selectedPost} />
+        {showCreatePost ? (
+          <CreatePostPanel
+            onCancel={() => setShowCreatePost(false)}
+            onPostCreated={handlePostCreated}
+            boards={boards}
+          />
+        ) : selectedPost ? (
+          <PostDetail post={selectedPost} refreshPosts={() => fetchPosts(categoryFilter)} />
         ) : (
           <div className="flex items-center justify-center h-64 border rounded-lg bg-gray-50">
             <p className="text-muted-foreground">게시글을 선택하면 여기에 내용이 표시됩니다</p>
