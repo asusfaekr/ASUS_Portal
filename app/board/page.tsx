@@ -10,7 +10,7 @@ export default function BoardPage() {
         <RewardSystem />
       </div>
       <div className="md:col-span-9">
-        <ForumPosts defaultCategory="all" />
+        <ForumPosts defaultCategory="all" showFilters={true} simplifiedCategories={false} showSortTabs={true} />
       </div>
     </div>
   )

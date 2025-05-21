@@ -10,7 +10,7 @@ export default function Home() {
         <RewardSystem />
       </div>
       <div className="md:col-span-9">
-        <ForumPosts defaultCategory="all" />
+        <ForumPosts defaultCategory="all" showFilters={false} simplifiedCategories={true} showSortTabs={false} />
       </div>
     </div>
   )

@@ -16,9 +16,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface ForumPostsProps {
   defaultCategory?: string
+  showFilters?: boolean // 필터와 검색 표시 여부
+  simplifiedCategories?: boolean // 간소화된 카테고리 메뉴 사용 여부
+  showSortTabs?: boolean // 정렬 탭(최신, 인기, 활발한 토론) 표시 여부
 }
 
-export function ForumPosts({ defaultCategory = "all" }: ForumPostsProps) {
+export function ForumPosts({
+  defaultCategory = "all",
+  showFilters = true,
+  simplifiedCategories = true,
+  showSortTabs = true,
+}: ForumPostsProps) {
   const [selectedPost, setSelectedPost] = useState(null)
   const [activeTab, setActiveTab] = useState("latest")
   const [posts, setPosts] = useState([])
@@ -188,6 +196,23 @@ export function ForumPosts({ defaultCategory = "all" }: ForumPostsProps) {
     }
   }
 
+  // 간소화된 카테고리 선택 컴포넌트
+  const renderCategorySelector = () => {
+    if (!simplifiedCategories) return null
+
+    return (
+      <div className="mb-4">
+        <Tabs value={categoryFilter} onValueChange={setCategoryFilter}>
+          <TabsList>
+            <TabsTrigger value="all">전체</TabsTrigger>
+            <TabsTrigger value="announcements">공지사항</TabsTrigger>
+            <TabsTrigger value="forum">Forum</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+    )
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-4">
@@ -198,43 +223,50 @@ export function ForumPosts({ defaultCategory = "all" }: ForumPostsProps) {
           </Button>
         </div>
 
+        {/* 간소화된 카테고리 선택기 */}
+        {renderCategorySelector()}
+
         <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
-          <Tabs defaultValue="latest" value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
-            <TabsList>
-              <TabsTrigger value="latest">최신</TabsTrigger>
-              <TabsTrigger value="top">인기</TabsTrigger>
-              <TabsTrigger value="hot">활발한 토론</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {showSortTabs && (
+            <Tabs defaultValue="latest" value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
+              <TabsList>
+                <TabsTrigger value="latest">최신</TabsTrigger>
+                <TabsTrigger value="top">인기</TabsTrigger>
+                <TabsTrigger value="hot">활발한 토론</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
 
-          <div className="flex gap-2 w-full md:w-auto">
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="카테고리" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="announcements">공지사항</SelectItem>
-                <SelectItem value="forum">ASUS Forum</SelectItem>
-              </SelectContent>
-            </Select>
+          {showFilters && (
+            <div className="flex gap-2 w-full md:w-auto">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="카테고리" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  <SelectItem value="announcements">공지사항</SelectItem>
+                  <SelectItem value="forum">ASUS Forum</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-auto">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="검색..."
-                  className="pl-8 w-full"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Button type="submit" variant="outline">
-                검색
-              </Button>
-            </form>
-          </div>
+              <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-auto">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="검색..."
+                    className="pl-8 w-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" variant="outline">
+                  검색
+                </Button>
+              </form>
+            </div>
+          )}
         </div>
 
         <Card>
