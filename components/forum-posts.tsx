@@ -226,19 +226,22 @@ export function ForumPosts({
         {/* 간소화된 카테고리 선택기 */}
         {renderCategorySelector()}
 
-        <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
+        {/* 정렬 탭과 필터/검색을 분리하여 다른 줄에 배치 */}
+        <div className="space-y-4">
           {showSortTabs && (
-            <Tabs defaultValue="latest" value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
-              <TabsList>
-                <TabsTrigger value="latest">최신</TabsTrigger>
-                <TabsTrigger value="top">인기</TabsTrigger>
-                <TabsTrigger value="hot">활발한 토론</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="w-full">
+              <Tabs defaultValue="latest" value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="w-full md:w-auto">
+                  <TabsTrigger value="latest">최신</TabsTrigger>
+                  <TabsTrigger value="top">인기</TabsTrigger>
+                  <TabsTrigger value="hot">활발한 토론</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           )}
 
           {showFilters && (
-            <div className="flex gap-2 w-full md:w-auto">
+            <div className="flex gap-2 w-full">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-full md:w-[180px]">
                   <SelectValue placeholder="카테고리" />
@@ -250,7 +253,7 @@ export function ForumPosts({
                 </SelectContent>
               </Select>
 
-              <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-auto">
+              <form onSubmit={handleSearch} className="flex gap-2 w-full">
                 <div className="relative flex-1">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
