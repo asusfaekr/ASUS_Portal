@@ -31,7 +31,7 @@ export function ForumPosts({
   initialSearchQuery = "", // 추가
 }: ForumPostsProps) {
   const [selectedPost, setSelectedPost] = useState(null)
-  const [activeTab, setActiveTab] = useState("all") // 기본값을 "all"로 변경
+  const [activeTab, setActiveTab] = useState("latest")
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery)
@@ -41,15 +41,6 @@ export function ForumPosts({
   const { user } = useAuth()
   const router = useRouter()
 
-  // 역할별 게시판 매핑
-  const roleBoardsMapping = {
-    all: [], // 모든 게시판
-    fae: ["fae-technical-updates", "fae-resources"], // FAE 관련 게시판 슬러그
-    sales: ["sales-opportunities", "sales-resources"], // Sales 관련 게시판 슬러그
-    marketing: ["marketing-campaigns", "marketing-resources"], // Marketing 관련 게시판 슬러그
-    announcements: ["announcements"], // 공지사항 게시판 슬러그
-  }
-
   useEffect(() => {
     setCategoryFilter(defaultCategory)
     fetchPosts(defaultCategory)
@@ -57,7 +48,7 @@ export function ForumPosts({
   }, [defaultCategory])
 
   useEffect(() => {
-    fetchPosts(categoryFilter, activeTab)
+    fetchPosts(categoryFilter)
   }, [activeTab, categoryFilter])
 
   useEffect(() => {
@@ -80,7 +71,7 @@ export function ForumPosts({
     }
   }
 
-  const fetchPosts = async (category, role = "all") => {
+  const fetchPosts = async (category) => {
     setLoading(true)
     try {
       let query = supabase.from("posts").select(`
@@ -107,23 +98,16 @@ export function ForumPosts({
           query = query.in("board_id", boardIds)
         }
       }
+      // all 카테고리는 필터링하지 않음
 
-      // 역할 기반 필터링 (새로 추가)
-      if (role !== "all" && roleBoardsMapping[role]) {
-        // 해당 역할에 맞는 게시판 슬러그 목록 가져오기
-        const roleBoardSlugs = roleBoardsMapping[role]
-
-        // 게시판 슬러그로 게시판 ID 가져오기
-        const { data: roleBoards } = await supabase.from("boards").select("id").in("slug", roleBoardSlugs)
-
-        if (roleBoards && roleBoards.length > 0) {
-          const boardIds = roleBoards.map((board) => board.id)
-          query = query.in("board_id", boardIds)
-        }
+      // 정렬 방식
+      if (activeTab === "latest") {
+        query = query.order("created_at", { ascending: false })
+      } else if (activeTab === "top") {
+        query = query.order("likes.count", { ascending: false })
+      } else if (activeTab === "hot") {
+        query = query.order("comments.count", { ascending: false })
       }
-
-      // 정렬 방식 (기존 코드 유지)
-      query = query.order("created_at", { ascending: false })
 
       const { data, error } = await query.limit(20)
 
@@ -209,7 +193,7 @@ export function ForumPosts({
   }
 
   const handlePostCreated = () => {
-    fetchPosts(categoryFilter, activeTab)
+    fetchPosts(categoryFilter)
     setShowCreatePost(false)
   }
 
@@ -249,22 +233,6 @@ export function ForumPosts({
     }
   }
 
-  // 역할 탭 제목 가져오기
-  const getRoleTabTitle = () => {
-    switch (activeTab) {
-      case "fae":
-        return "FAE 게시판"
-      case "sales":
-        return "Sales 게시판"
-      case "marketing":
-        return "Marketing 게시판"
-      case "announcements":
-        return "공지사항"
-      default:
-        return "전체 게시판"
-    }
-  }
-
   // 간소화된 카테고리 선택 컴포넌트
   const renderCategorySelector = () => {
     if (!simplifiedCategories) return null
@@ -286,8 +254,8 @@ export function ForumPosts({
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold">{getRoleTabTitle()}</h2>
-          {/* 새 글 작성 버튼 */}
+          <h2 className="text-2xl font-bold">{getCategoryTitle()}</h2>
+          {/* 새 글 작성 버튼 다시 추가 */}
           <Button className="bg-[#0a66c2] hover:bg-[#004182]" onClick={handleCreatePost}>
             <PlusCircle className="mr-2 h-4 w-4" />새 글 작성
           </Button>
@@ -296,51 +264,51 @@ export function ForumPosts({
         {/* 간소화된 카테고리 선택기 */}
         {renderCategorySelector()}
 
-        {/* 역할 기반 탭 (기존 정렬 탭 대체) */}
-        {showSortTabs && (
-          <div className="inline-block">
-            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="w-full">
-                <TabsTrigger value="all">전체</TabsTrigger>
-                <TabsTrigger value="fae">FAE</TabsTrigger>
-                <TabsTrigger value="sales">Sales</TabsTrigger>
-                <TabsTrigger value="marketing">Marketing</TabsTrigger>
-                <TabsTrigger value="announcements">공지사항</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        )}
+        {/* 정렬 탭과 필터/검색을 분리하여 다른 줄에 배치 */}
+        <div className="space-y-4">
+          {showSortTabs && (
+            <div className="inline-block">
+              <Tabs defaultValue="latest" value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="latest">최신</TabsTrigger>
+                  <TabsTrigger value="top">인기</TabsTrigger>
+                  <TabsTrigger value="hot">활발한 토론</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          )}
 
-        {showFilters && (
-          <div className="flex gap-2 w-full">
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="카테고리" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="announcements">공지사항</SelectItem>
-                <SelectItem value="forum">ASUS Forum</SelectItem>
-              </SelectContent>
-            </Select>
+          {showFilters && (
+            <div className="flex gap-2 w-full">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="카테고리" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  <SelectItem value="announcements">공지사항</SelectItem>
+                  <SelectItem value="forum">ASUS Forum</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <form onSubmit={handleSearch} className="flex gap-2 w-full">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="검색..."
-                  className="pl-8 w-full"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Button type="submit" variant="outline">
-                검색
-              </Button>
-            </form>
-          </div>
-        )}
+              <form onSubmit={handleSearch} className="flex gap-2 w-full">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="검색..."
+                    className="pl-8 w-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" variant="outline">
+                  검색
+                </Button>
+              </form>
+            </div>
+          )}
+        </div>
 
         <Card>
           <CardContent className="p-0">
@@ -402,7 +370,7 @@ export function ForumPosts({
             boards={boards}
           />
         ) : selectedPost ? (
-          <PostDetail post={selectedPost} refreshPosts={() => fetchPosts(categoryFilter, activeTab)} />
+          <PostDetail post={selectedPost} refreshPosts={() => fetchPosts(categoryFilter)} />
         ) : (
           <div className="flex items-center justify-center h-64 border rounded-lg bg-gray-50">
             <p className="text-muted-foreground">게시글을 선택하면 여기에 내용이 표시됩니다</p>

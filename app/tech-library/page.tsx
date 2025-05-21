@@ -166,7 +166,7 @@ export default function TechLibraryPage() {
     <div className="container py-10">
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-2xl">기술 문서 라이브러리</CardTitle>
+          <CardTitle className="text-2xl">Docs Library</CardTitle>
           <CardDescription>제품 관련 기술 문서, 가이드 및 참조 자료</CardDescription>
         </CardHeader>
         <CardContent>

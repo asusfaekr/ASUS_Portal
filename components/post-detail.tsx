@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -19,57 +19,6 @@ export function PostDetail({ post, refreshPosts }) {
   const [comment, setComment] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const { user } = useAuth()
-
-  // 댓글 관련 상태 추가
-  const [comments, setComments] = useState([])
-  const [loadingComments, setLoadingComments] = useState(false)
-  const [visibleComments, setVisibleComments] = useState(5) // 처음에 5개만 표시
-  const [totalComments, setTotalComments] = useState(0)
-
-  // 게시글이 변경될 때마다 댓글 로드
-  useEffect(() => {
-    if (post?.id) {
-      loadComments()
-    }
-  }, [post?.id])
-
-  // 댓글 로드 함수
-  const loadComments = async () => {
-    if (!post?.id) return
-
-    setLoadingComments(true)
-    try {
-      // 댓글 가져오기
-      const { data, error, count } = await supabase
-        .from("comments")
-        .select(
-          `
-          *,
-          users:user_id (*)
-        `,
-          { count: "exact" },
-        )
-        .eq("post_id", post.id)
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("Error loading comments:", error)
-        return
-      }
-
-      setComments(data || [])
-      setTotalComments(count || 0)
-    } catch (error) {
-      console.error("Error:", error)
-    } finally {
-      setLoadingComments(false)
-    }
-  }
-
-  // 더 많은 댓글 로드
-  const loadMoreComments = () => {
-    setVisibleComments((prev) => prev + 5)
-  }
 
   if (!post) return null
 
@@ -118,9 +67,6 @@ export function PostDetail({ post, refreshPosts }) {
       // 댓글 작성 후 폼 초기화
       setComment("")
       setShowCommentForm(false)
-
-      // 댓글 목록 새로고침
-      loadComments()
 
       // 게시글 목록 새로고침 (댓글 수 업데이트를 위해)
       if (refreshPosts) {
@@ -187,52 +133,6 @@ export function PostDetail({ post, refreshPosts }) {
             <Share2 className="h-4 w-4" />
             공유
           </Button>
-        </div>
-
-        {/* 댓글 목록 표시 */}
-        <div className="space-y-4 pt-2">
-          <h3 className="text-sm font-medium">댓글 {totalComments}개</h3>
-
-          {loadingComments ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            </div>
-          ) : comments.length > 0 ? (
-            <div className="space-y-4">
-              {comments.slice(0, visibleComments).map((comment) => (
-                <div key={comment.id} className="border-b pb-4">
-                  <div className="flex gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>{comment.users?.full_name?.[0] || "U"}</AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-medium text-sm">{comment.users?.full_name || "사용자"}</span>
-                          <span className="text-xs text-muted-foreground ml-2">{comment.users?.position || ""}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
-                      </div>
-                      <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* 더보기 버튼 */}
-              {visibleComments < totalComments && (
-                <div className="text-center pt-2">
-                  <Button variant="ghost" size="sm" onClick={loadMoreComments}>
-                    댓글 더보기 ({totalComments - visibleComments}개 더)
-                  </Button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-4 text-muted-foreground">
-              <p>아직 댓글이 없습니다. 첫 번째 댓글을 작성해보세요!</p>
-            </div>
-          )}
         </div>
 
         {showCommentForm && (
