@@ -50,8 +50,9 @@ export function Header() {
                 <span>Home</span>
               </Link>
               <Link
-                href="/board"
+                href="/"
                 className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
+                  pathname === "/" ||
                   pathname.startsWith("/board") ||
                   pathname.startsWith("/fae-portal") ||
                   pathname.startsWith("/sales-portal") ||

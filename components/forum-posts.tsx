@@ -1,18 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Card, CardContent } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, ThumbsUp, PlusCircle, AlertTriangle } from "lucide-react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PostDetail } from "@/components/post-detail"
+import { Search, MessageSquare, ThumbsUp, PlusCircle, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/components/auth-provider"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { PostDetail } from "@/components/post-detail"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface ForumPostsProps {
   defaultCategory?: string
@@ -20,74 +20,119 @@ interface ForumPostsProps {
 
 export function ForumPosts({ defaultCategory = "all" }: ForumPostsProps) {
   const [selectedPost, setSelectedPost] = useState(null)
-  const [activeTab, setActiveTab] = useState(defaultCategory)
+  const [activeTab, setActiveTab] = useState("latest")
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState(defaultCategory)
   const { user } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    setActiveTab(defaultCategory)
+    setCategoryFilter(defaultCategory)
     fetchPosts(defaultCategory)
   }, [defaultCategory])
 
+  useEffect(() => {
+    fetchPosts(categoryFilter)
+  }, [activeTab, categoryFilter])
+
   const fetchPosts = async (category) => {
     setLoading(true)
-    setError(null)
-
     try {
       let query = supabase.from("posts").select(`
           *,
           users:user_id (*),
-          boards:board_id (*)
+          boards:board_id (*),
+          comments:comments(count),
+          likes:likes(count)
         `)
 
-      // 정렬 적용 전에 쿼리가 유효한지 확인
-      if (!query || typeof query.order !== "function") {
-        throw new Error("Supabase 클라이언트가 올바르게 초기화되지 않았습니다.")
-      }
-
-      query = query.order("created_at", { ascending: false })
-
+      // 카테고리 필터링
       if (category && category !== "all") {
-        try {
-          // 카테고리에 해당하는 게시판 ID 가져오기
-          const { data: boards, error: boardError } = await supabase
-            .from("boards")
-            .select("id")
-            .eq("slug", `${category}-resources`)
-            .or(`slug.eq.${category}-technical-updates,slug.eq.${category}-opportunities,slug.eq.${category}-campaigns`)
+        const { data: boards } = await supabase.from("boards").select("id").eq("slug", category)
 
-          if (boardError) {
-            console.error("Error fetching boards:", boardError)
-            throw boardError
-          }
-
-          if (boards && boards.length > 0) {
-            const boardIds = boards.map((board) => board.id)
-            query = query.in("board_id", boardIds)
-          }
-        } catch (boardError) {
-          console.error("Error in board query:", boardError)
-          // 게시판 쿼리 오류 시 모든 게시글 표시
+        if (boards && boards.length > 0) {
+          query = query.eq("board_id", boards[0].id)
         }
       }
 
-      const { data, error: postsError } = await query
-
-      if (postsError) {
-        console.error("Error fetching posts:", postsError)
-        throw postsError
+      // 정렬 방식
+      if (activeTab === "latest") {
+        query = query.order("created_at", { ascending: false })
+      } else if (activeTab === "top") {
+        query = query.order("likes.count", { ascending: false })
+      } else if (activeTab === "hot") {
+        query = query.order("comments.count", { ascending: false })
       }
 
-      setPosts(data || [])
+      const { data, error } = await query.limit(20)
+
+      if (error) {
+        console.error("Error fetching posts:", error)
+        return
+      }
+
+      // 댓글 및 좋아요 수 처리
+      const postsWithCounts = data.map((post) => ({
+        ...post,
+        commentsCount: post.comments?.length || 0,
+        likesCount: post.likes?.length || 0,
+      }))
+
+      setPosts(postsWithCounts)
+
+      // 첫 번째 게시글을 자동으로 선택
+      if (postsWithCounts.length > 0 && !selectedPost) {
+        setSelectedPost(postsWithCounts[0])
+      }
     } catch (error) {
       console.error("Error:", error)
-      setError("게시글을 불러오는 중 오류가 발생했습니다. Supabase 연결을 확인해주세요.")
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSearch = (e) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+
+    setLoading(true)
+    supabase
+      .from("posts")
+      .select(`
+        *,
+        users:user_id (*),
+        boards:board_id (*),
+        comments:comments(count),
+        likes:likes(count)
+      `)
+      .or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Search error:", error)
+          return
+        }
+
+        // 댓글 및 좋아요 수 처리
+        const postsWithCounts = data.map((post) => ({
+          ...post,
+          commentsCount: post.comments?.length || 0,
+          likesCount: post.likes?.length || 0,
+        }))
+
+        setPosts(postsWithCounts)
+
+        // 검색 결과의 첫 번째 게시글을 선택
+        if (postsWithCounts.length > 0) {
+          setSelectedPost(postsWithCounts[0])
+        } else {
+          setSelectedPost(null)
+        }
+
+        setLoading(false)
+      })
   }
 
   const handlePostSelect = (post) => {
@@ -98,18 +143,43 @@ export function ForumPosts({ defaultCategory = "all" }: ForumPostsProps) {
     }
   }
 
+  const formatDate = (dateString) => {
+    if (!dateString) return ""
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffTime = Math.abs(now - date)
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
+      if (diffHours === 0) {
+        const diffMinutes = Math.floor(diffTime / (1000 * 60))
+        return `${diffMinutes}분 전`
+      }
+      return `${diffHours}시간 전`
+    } else if (diffDays < 7) {
+      return `${diffDays}일 전`
+    } else {
+      return new Intl.DateTimeFormat("ko-KR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).format(date)
+    }
+  }
+
   const getCategoryTitle = () => {
-    switch (activeTab) {
+    switch (categoryFilter) {
       case "announcements":
         return "공지사항"
       case "fae":
-        return "FAE 포럼"
+        return "FAE"
       case "sales":
-        return "Sales 포럼"
+        return "Sales"
       case "marketing":
-        return "Marketing 포럼"
+        return "Marketing"
       default:
-        return "게시판"
+        return "ASUS Forum"
     }
   }
 
@@ -123,49 +193,97 @@ export function ForumPosts({ defaultCategory = "all" }: ForumPostsProps) {
           </Button>
         </div>
 
-        <Tabs
-          defaultValue={activeTab}
-          value={activeTab}
-          onValueChange={(value) => {
-            setActiveTab(value)
-            fetchPosts(value)
-          }}
-        >
-          <TabsList className="grid grid-cols-5 mb-4">
-            <TabsTrigger value="all">전체</TabsTrigger>
-            <TabsTrigger value="announcements">공지사항</TabsTrigger>
-            <TabsTrigger value="fae">FAE</TabsTrigger>
-            <TabsTrigger value="sales">Sales</TabsTrigger>
-            <TabsTrigger value="marketing">Marketing</TabsTrigger>
-          </TabsList>
+        <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
+          <Tabs defaultValue="latest" value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
+            <TabsList>
+              <TabsTrigger value="latest">최신</TabsTrigger>
+              <TabsTrigger value="top">인기</TabsTrigger>
+              <TabsTrigger value="hot">활발한 토론</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-          <TabsContent value={activeTab} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>오류</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+          <div className="flex gap-2 w-full md:w-auto">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="카테고리" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="announcements">공지사항</SelectItem>
+                <SelectItem value="fae">FAE</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
+                <SelectItem value="marketing">Marketing</SelectItem>
+              </SelectContent>
+            </Select>
 
+            <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-auto">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="검색..."
+                  className="pl-8 w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Button type="submit" variant="outline">
+                검색
+              </Button>
+            </form>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
             {loading ? (
-              <div className="flex justify-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a66c2]"></div>
+              <div className="flex justify-center items-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : posts.length > 0 ? (
-              posts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  isSelected={selectedPost?.id === post.id}
-                  onSelect={handlePostSelect}
-                />
-              ))
+              <div className="divide-y">
+                {posts.map((post) => (
+                  <div
+                    key={post.id}
+                    className={`p-4 hover:bg-accent/50 cursor-pointer ${selectedPost?.id === post.id ? "bg-accent" : ""}`}
+                    onClick={() => handlePostSelect(post)}
+                  >
+                    <div className="flex gap-4">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback>{post.users?.full_name?.[0] || "U"}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-[#0a66c2]">{post.boards?.name || "게시판"}</Badge>
+                            <span className="text-sm font-medium">{post.users?.full_name || "사용자"}</span>
+                            <span className="text-xs text-muted-foreground">{formatDate(post.created_at)}</span>
+                          </div>
+                        </div>
+                        <h3 className="text-lg font-semibold hover:text-[#0a66c2]">{post.title}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{post.content}</p>
+                        <div className="flex items-center gap-4 pt-2">
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <ThumbsUp className="mr-1 h-4 w-4" />
+                            {post.likesCount || 0}
+                          </div>
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <MessageSquare className="mr-1 h-4 w-4" />
+                            {post.commentsCount || 0}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <div className="text-center p-8 text-muted-foreground">게시글이 없습니다.</div>
+              <div className="text-center py-20 text-muted-foreground">
+                <p>게시글이 없습니다.</p>
+              </div>
             )}
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="hidden md:block sticky top-20 h-fit">
@@ -178,58 +296,5 @@ export function ForumPosts({ defaultCategory = "all" }: ForumPostsProps) {
         )}
       </div>
     </div>
-  )
-}
-
-function PostCard({ post, isSelected, onSelect }) {
-  const formatDate = (dateString) => {
-    if (!dateString) return ""
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(date)
-  }
-
-  return (
-    <Card
-      className={`cursor-pointer transition-all ${isSelected ? "border-[#0a66c2] ring-1 ring-[#0a66c2]" : ""}`}
-      onClick={() => onSelect(post)}
-    >
-      <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-2">
-        <Avatar>
-          <AvatarFallback>{post.users?.full_name?.[0] || "U"}</AvatarFallback>
-        </Avatar>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold">{post.users?.full_name || "사용자"}</h3>
-            <span className="text-xs text-muted-foreground">{post.users?.company || ""}</span>
-          </div>
-          <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Badge className="bg-[#0a66c2]">{post.boards?.name || "게시판"}</Badge>
-            <Link href={`/post/${post.id}`} className="font-medium hover:text-[#0a66c2]">
-              {post.title}
-            </Link>
-          </div>
-          <p className="text-sm line-clamp-3">{post.content}</p>
-        </div>
-      </CardContent>
-      <CardFooter className="flex items-center gap-4 pt-0">
-        <Button variant="ghost" size="sm" className="text-xs gap-1">
-          <ThumbsUp className="h-4 w-4" />
-          좋아요
-        </Button>
-        <Button variant="ghost" size="sm" className="text-xs gap-1">
-          <MessageSquare className="h-4 w-4" />
-          댓글
-        </Button>
-      </CardFooter>
-    </Card>
   )
 }
