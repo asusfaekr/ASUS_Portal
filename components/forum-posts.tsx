@@ -49,13 +49,22 @@ export function ForumPosts({ defaultCategory = "all" }: ForumPostsProps) {
         `)
 
       // 카테고리 필터링
-      if (category && category !== "all") {
-        const { data: boards } = await supabase.from("boards").select("id").eq("slug", category)
-
+      if (category === "announcements") {
+        // 공지사항 게시판만 필터링
+        const { data: boards } = await supabase.from("boards").select("id").eq("slug", "announcements")
         if (boards && boards.length > 0) {
           query = query.eq("board_id", boards[0].id)
         }
+      } else if (category === "forum") {
+        // 공지사항을 제외한 모든 게시판 (FAE, Sales, Marketing)
+        const { data: boards } = await supabase.from("boards").select("id").neq("slug", "announcements")
+
+        if (boards && boards.length > 0) {
+          const boardIds = boards.map((board) => board.id)
+          query = query.in("board_id", boardIds)
+        }
       }
+      // all 카테고리는 필터링하지 않음
 
       // 정렬 방식
       if (activeTab === "latest") {
@@ -172,14 +181,10 @@ export function ForumPosts({ defaultCategory = "all" }: ForumPostsProps) {
     switch (categoryFilter) {
       case "announcements":
         return "공지사항"
-      case "fae":
-        return "FAE"
-      case "sales":
-        return "Sales"
-      case "marketing":
-        return "Marketing"
-      default:
+      case "forum":
         return "ASUS Forum"
+      default:
+        return "전체 게시글"
     }
   }
 
@@ -210,9 +215,7 @@ export function ForumPosts({ defaultCategory = "all" }: ForumPostsProps) {
               <SelectContent>
                 <SelectItem value="all">전체</SelectItem>
                 <SelectItem value="announcements">공지사항</SelectItem>
-                <SelectItem value="fae">FAE</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="marketing">Marketing</SelectItem>
+                <SelectItem value="forum">ASUS Forum</SelectItem>
               </SelectContent>
             </Select>
 
