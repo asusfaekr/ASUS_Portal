@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Search, MessageSquare, ThumbsUp, Loader2 } from "lucide-react"
+import { Search, MessageSquare, ThumbsUp, PlusCircle, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/components/auth-provider"
 import { useRouter } from "next/navigation"
@@ -53,6 +53,7 @@ export function ForumPosts({
 
   useEffect(() => {
     if (initialSearchQuery) {
+      setSearchQuery(initialSearchQuery)
       handleSearch(new Event("submit") as any)
     }
   }, [initialSearchQuery])
@@ -254,7 +255,10 @@ export function ForumPosts({
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">{getCategoryTitle()}</h2>
-          {/* 새 글 작성 버튼 제거 */}
+          {/* 새 글 작성 버튼 다시 추가 */}
+          <Button className="bg-[#0a66c2] hover:bg-[#004182]" onClick={handleCreatePost}>
+            <PlusCircle className="mr-2 h-4 w-4" />새 글 작성
+          </Button>
         </div>
 
         {/* 간소화된 카테고리 선택기 */}
