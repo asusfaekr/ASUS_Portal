@@ -1,16 +1,241 @@
-import { ProfileCard } from "@/components/profile-card"
-import { ForumPosts } from "@/components/forum-posts"
-import { RewardSystem } from "@/components/reward-system"
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Search, MessageSquare, ThumbsUp, PlusCircle, Loader2 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/components/auth-provider"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function BoardPage() {
+  const [activeTab, setActiveTab] = useState("latest")
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("all")
+  const { user } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    fetchPosts()
+  }, [activeTab, categoryFilter])
+
+  const fetchPosts = async () => {
+    setLoading(true)
+    try {
+      let query = supabase.from("posts").select(`
+          *,
+          users:user_id (*),
+          boards:board_id (*),
+          comments:comments(count),
+          likes:likes(count)
+        `)
+
+      // 카테고리 필터링
+      if (categoryFilter !== "all") {
+        const { data: boards } = await supabase.from("boards").select("id").eq("slug", categoryFilter)
+
+        if (boards && boards.length > 0) {
+          query = query.eq("board_id", boards[0].id)
+        }
+      }
+
+      // 정렬 방식
+      if (activeTab === "latest") {
+        query = query.order("created_at", { ascending: false })
+      } else if (activeTab === "top") {
+        query = query.order("likes.count", { ascending: false })
+      } else if (activeTab === "hot") {
+        query = query.order("comments.count", { ascending: false })
+      }
+
+      const { data, error } = await query.limit(20)
+
+      if (error) {
+        console.error("Error fetching posts:", error)
+        return
+      }
+
+      // 댓글 및 좋아요 수 처리
+      const postsWithCounts = data.map((post) => ({
+        ...post,
+        commentsCount: post.comments?.length || 0,
+        likesCount: post.likes?.length || 0,
+      }))
+
+      setPosts(postsWithCounts)
+    } catch (error) {
+      console.error("Error:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSearch = (e) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+
+    setLoading(true)
+    supabase
+      .from("posts")
+      .select(`
+        *,
+        users:user_id (*),
+        boards:board_id (*),
+        comments:comments(count),
+        likes:likes(count)
+      `)
+      .or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Search error:", error)
+          return
+        }
+
+        // 댓글 및 좋아요 수 처리
+        const postsWithCounts = data.map((post) => ({
+          ...post,
+          commentsCount: post.comments?.length || 0,
+          likesCount: post.likes?.length || 0,
+        }))
+
+        setPosts(postsWithCounts)
+        setLoading(false)
+      })
+  }
+
+  const formatDate = (dateString) => {
+    if (!dateString) return ""
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffTime = Math.abs(now - date)
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
+      if (diffHours === 0) {
+        const diffMinutes = Math.floor(diffTime / (1000 * 60))
+        return `${diffMinutes}분 전`
+      }
+      return `${diffHours}시간 전`
+    } else if (diffDays < 7) {
+      return `${diffDays}일 전`
+    } else {
+      return new Intl.DateTimeFormat("ko-KR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).format(date)
+    }
+  }
+
   return (
-    <div className="container py-6 grid grid-cols-1 md:grid-cols-12 gap-6">
-      <div className="md:col-span-3 space-y-6">
-        <ProfileCard />
-        <RewardSystem />
-      </div>
-      <div className="md:col-span-9">
-        <ForumPosts defaultCategory="all" />
+    <div className="container py-6">
+      <div className="flex flex-col space-y-4">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">ASUS Forum</h1>
+          <Button className="bg-[#0a66c2] hover:bg-[#004182]" onClick={() => router.push("/create-post")}>
+            <PlusCircle className="mr-2 h-4 w-4" />새 글 작성
+          </Button>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
+          <Tabs defaultValue="latest" value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
+            <TabsList>
+              <TabsTrigger value="latest">최신</TabsTrigger>
+              <TabsTrigger value="top">인기</TabsTrigger>
+              <TabsTrigger value="hot">활발한 토론</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="flex gap-2 w-full md:w-auto">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="카테고리" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="announcements">공지사항</SelectItem>
+                <SelectItem value="fae">FAE</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
+                <SelectItem value="marketing">Marketing</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-auto">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="검색..."
+                  className="pl-8 w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Button type="submit" variant="outline">
+                검색
+              </Button>
+            </form>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex justify-center items-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : posts.length > 0 ? (
+              <div className="divide-y">
+                {posts.map((post) => (
+                  <div key={post.id} className="p-4 hover:bg-accent/50">
+                    <div className="flex gap-4">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback>{post.users?.full_name?.[0] || "U"}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-[#0a66c2]">{post.boards?.name || "게시판"}</Badge>
+                            <span className="text-sm font-medium">{post.users?.full_name || "사용자"}</span>
+                            <span className="text-xs text-muted-foreground">{formatDate(post.created_at)}</span>
+                          </div>
+                        </div>
+                        <Link href={`/post/${post.id}`} className="block">
+                          <h3 className="text-lg font-semibold hover:text-[#0a66c2]">{post.title}</h3>
+                        </Link>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{post.content}</p>
+                        <div className="flex items-center gap-4 pt-2">
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <ThumbsUp className="mr-1 h-4 w-4" />
+                            {post.likesCount || 0}
+                          </div>
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <MessageSquare className="mr-1 h-4 w-4" />
+                            {post.commentsCount || 0}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 text-muted-foreground">
+                <p>게시글이 없습니다.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

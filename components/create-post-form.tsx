@@ -11,8 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/auth-provider"
 import { supabase } from "@/lib/supabase"
-import { ROLE_BOARDS } from "@/lib/constants"
 import { useRouter } from "next/navigation"
+
+// 관리자 역할 ID (예: 1은 FAE, 2는 Sales, 3은 Marketing)
+const ADMIN_ROLE_ID = 999 // 실제 관리자 역할 ID로 변경 필요
 
 export function CreatePostForm() {
   const { user } = useAuth()
@@ -26,31 +28,35 @@ export function CreatePostForm() {
   const [loading, setLoading] = useState(false)
   const [loadingBoards, setLoadingBoards] = useState(true)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const isAdmin = user?.role_id === ADMIN_ROLE_ID // 관리자 여부 확인
 
   // 사용자 역할에 따라 접근 가능한 게시판 가져오기
   useEffect(() => {
     const fetchBoards = async () => {
       setLoadingBoards(true)
       try {
-        let query = supabase.from("boards").select("*")
+        // 4가지 주요 게시판 정의
+        const mainBoards = [
+          { id: 1, name: "공지사항", slug: "announcements" },
+          { id: 2, name: "FAE", slug: "fae" },
+          { id: 3, name: "Sales", slug: "sales" },
+          { id: 4, name: "Marketing", slug: "marketing" },
+        ]
 
-        // 역할에 따른 접근 제어
-        if (user?.role_id) {
-          const accessibleSlugs = [...(ROLE_BOARDS[user.role_id] || []), ...ROLE_BOARDS.ALL]
-          query = query.in("slug", accessibleSlugs)
-        } else {
-          // 역할이 없는 경우 공지사항만 접근 가능
-          query = query.in("slug", ROLE_BOARDS.ALL)
+        // 관리자가 아닌 경우 공지사항 제외
+        const availableBoards = isAdmin ? mainBoards : mainBoards.filter((board) => board.slug !== "announcements")
+
+        setBoards(availableBoards)
+
+        // 기본 게시판 설정 - 관리자가 아닌 경우 FAE 게시판, 관리자인 경우 공지사항
+        if (availableBoards.length > 0) {
+          const defaultBoard = isAdmin ? availableBoards[0] : availableBoards[0]
+
+          setFormData((prev) => ({
+            ...prev,
+            boardId: defaultBoard.id.toString(),
+          }))
         }
-
-        const { data, error } = await query.order("name")
-
-        if (error) {
-          console.error("Error fetching boards:", error)
-          return
-        }
-
-        setBoards(data || [])
       } catch (error) {
         console.error("Error:", error)
       } finally {
@@ -59,7 +65,7 @@ export function CreatePostForm() {
     }
 
     fetchBoards()
-  }, [user])
+  }, [user, isAdmin])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -83,6 +89,16 @@ export function CreatePostForm() {
 
     if (!formData.title || !formData.content || !formData.boardId) {
       setMessage({ type: "error", text: "모든 필드를 입력해주세요." })
+      setLoading(false)
+      return
+    }
+
+    // 게시판 접근 권한 확인
+    const selectedBoard = boards.find((board) => board.id.toString() === formData.boardId)
+
+    // 관리자가 아닌 사용자가 공지사항에 글을 작성하려고 할 때
+    if (!isAdmin && selectedBoard?.slug === "announcements") {
+      setMessage({ type: "error", text: "공지사항 게시판에 글을 작성할 권한이 없습니다." })
       setLoading(false)
       return
     }
@@ -120,7 +136,7 @@ export function CreatePostForm() {
 
       // 3초 후 게시판으로 이동
       setTimeout(() => {
-        router.push("/")
+        router.push("/board")
         router.refresh()
       }, 3000)
     } catch (error) {
