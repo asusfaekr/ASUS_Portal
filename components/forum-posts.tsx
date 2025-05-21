@@ -201,7 +201,7 @@ export function ForumPosts({
     if (!simplifiedCategories) return null
 
     return (
-      <div className="mb-4">
+      <div className="mb-4 inline-block">
         <Tabs value={categoryFilter} onValueChange={setCategoryFilter}>
           <TabsList>
             <TabsTrigger value="all">전체</TabsTrigger>
@@ -229,9 +229,9 @@ export function ForumPosts({
         {/* 정렬 탭과 필터/검색을 분리하여 다른 줄에 배치 */}
         <div className="space-y-4">
           {showSortTabs && (
-            <div className="w-full">
+            <div className="inline-block">
               <Tabs defaultValue="latest" value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="w-full md:w-auto">
+                <TabsList className="w-full">
                   <TabsTrigger value="latest">최신</TabsTrigger>
                   <TabsTrigger value="top">인기</TabsTrigger>
                   <TabsTrigger value="hot">활발한 토론</TabsTrigger>
