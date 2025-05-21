@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,17 +11,30 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/components/auth-provider"
 import { supabase } from "@/lib/supabase"
+import { Loader2 } from "lucide-react"
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth()
   const [formData, setFormData] = useState({
-    fullName: user?.full_name || "",
-    company: user?.company || "",
-    position: user?.position || "",
-    role: user?.role_id?.toString() || "",
+    fullName: "",
+    company: "",
+    position: "",
+    role: "0", // Updated default value to be a non-empty string
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+
+  // 사용자 정보가 로드되면 폼 데이터 초기화
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        fullName: user.full_name || "",
+        company: user.company || "",
+        position: user.position || "",
+        role: user.role_id ? user.role_id.toString() : "0", // Updated default value to be a non-empty string
+      })
+    }
+  }, [user])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -49,6 +62,7 @@ export default function ProfilePage() {
 
       if (authError) {
         setMessage({ type: "error", text: authError.message })
+        setLoading(false)
         return
       }
 
@@ -60,11 +74,13 @@ export default function ProfilePage() {
           company: formData.company,
           position: formData.position,
           role_id: formData.role ? Number.parseInt(formData.role) : null,
+          updated_at: new Date().toISOString(),
         })
         .eq("id", user?.id)
 
       if (profileError) {
         setMessage({ type: "error", text: profileError.message })
+        setLoading(false)
         return
       }
 
@@ -117,13 +133,13 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="fullName">이름</Label>
+              <Label htmlFor="fullName">닉네임</Label>
               <Input
                 id="fullName"
                 name="fullName"
                 value={formData.fullName}
                 onChange={handleChange}
-                placeholder="이름을 입력하세요"
+                placeholder="닉네임을 입력하세요"
               />
             </div>
 
@@ -139,13 +155,13 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="position">직급</Label>
+              <Label htmlFor="position">직책</Label>
               <Input
                 id="position"
                 name="position"
                 value={formData.position}
                 onChange={handleChange}
-                placeholder="직급을 입력하세요"
+                placeholder="직책을 입력하세요"
               />
             </div>
 
@@ -156,7 +172,7 @@ export default function ProfilePage() {
                   <SelectValue placeholder="역할을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">선택 안함</SelectItem>
+                  <SelectItem value="0">선택 안함</SelectItem> // Updated value prop to be a non-empty string
                   <SelectItem value="1">FAE</SelectItem>
                   <SelectItem value="2">Sales</SelectItem>
                   <SelectItem value="3">Marketing</SelectItem>
@@ -165,6 +181,7 @@ export default function ProfilePage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {loading ? "저장 중..." : "저장"}
             </Button>
           </form>
