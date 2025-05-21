@@ -10,16 +10,23 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { supabase } from "@/lib/supabase"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react"
 
 export function LoginForm() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<"login" | "register">("login")
   const searchParams = useSearchParams()
+
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    nickname: "", // 닉네임 필드 추가
+    position: "", // 직책 필드 추가
+    role: "0", // 역할 필드 추가
+  })
 
   // URL 파라미터 확인
   useEffect(() => {
@@ -43,6 +50,15 @@ export function LoginForm() {
     }
   }, [searchParams])
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleRoleChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, role: value }))
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -51,8 +67,8 @@ export function LoginForm() {
     try {
       // 로그인 시도
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: formData.email,
+        password: formData.password,
       })
 
       if (signInError) {
@@ -108,7 +124,7 @@ export function LoginForm() {
     setMessage(null)
 
     // 이메일 도메인 검증 (asus.com 도메인만 허용)
-    if (!email.endsWith("@asus.com")) {
+    if (!formData.email.endsWith("@asus.com")) {
       setMessage({ type: "error", text: "ASUS 이메일(@asus.com)만 가입이 가능합니다." })
       setLoading(false)
       return
@@ -116,14 +132,15 @@ export function LoginForm() {
 
     try {
       const { error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: formData.email,
+        password: formData.password,
         options: {
           emailRedirectTo: `${window.location.origin}/api/auth/verify`,
           data: {
-            full_name: "",
+            full_name: formData.nickname,
             company: "ASUS",
-            position: "",
+            position: formData.position,
+            role_id: formData.role ? Number.parseInt(formData.role) : null,
           },
         },
       })
@@ -146,7 +163,7 @@ export function LoginForm() {
   }
 
   const handleForgotPassword = async () => {
-    if (!email) {
+    if (!formData.email) {
       setMessage({ type: "error", text: "비밀번호 재설정을 위해 이메일을 입력해주세요." })
       return
     }
@@ -155,7 +172,7 @@ export function LoginForm() {
     setMessage(null)
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
       })
 
@@ -199,9 +216,10 @@ export function LoginForm() {
               <Input
                 id="email-login"
                 type="email"
+                name="email"
                 placeholder="name@asus.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={handleChange}
                 required
               />
             </div>
@@ -216,8 +234,9 @@ export function LoginForm() {
               <Input
                 id="password-login"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
                 required
               />
             </div>
@@ -236,12 +255,51 @@ export function LoginForm() {
               <Input
                 id="email-register"
                 type="email"
+                name="email"
                 placeholder="name@asus.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={handleChange}
                 required
               />
               <p className="text-xs text-muted-foreground">ASUS 이메일(@asus.com)만 가입이 가능합니다.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nickname-register">닉네임</Label>
+              <Input
+                id="nickname-register"
+                name="nickname"
+                value={formData.nickname}
+                onChange={handleChange}
+                placeholder="닉네임을 입력하세요"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="position-register">직책</Label>
+              <Input
+                id="position-register"
+                name="position"
+                value={formData.position}
+                onChange={handleChange}
+                placeholder="직책을 입력하세요"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="role-register">역할</Label>
+              <Select value={formData.role} onValueChange={handleRoleChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="역할을 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">선택 안함</SelectItem>
+                  <SelectItem value="1">FAE</SelectItem>
+                  <SelectItem value="2">Sales</SelectItem>
+                  <SelectItem value="3">Marketing</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -249,8 +307,9 @@ export function LoginForm() {
               <Input
                 id="password-register"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
                 required
                 minLength={6}
               />
