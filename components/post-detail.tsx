@@ -83,12 +83,15 @@ export function PostDetail({ post, refreshPosts }) {
       if (user) {
         const { data: userLikeData, error: userLikeError } = await supabase
           .from("likes")
-          .select("*", { head: true })
+          .select("id")
           .eq("post_id", post.id)
           .eq("user_id", user.id)
+          .single()
 
-        if (!userLikeError) {
-          setUserLiked(!!userLikeData)
+        if (!userLikeError && userLikeData) {
+          setUserLiked(true)
+        } else {
+          setUserLiked(false)
         }
       }
     } catch (error) {
@@ -134,11 +137,22 @@ export function PostDetail({ post, refreshPosts }) {
 
         if (error) {
           console.error("Error adding like:", error)
-          toast({
-            title: "좋아요 실패",
-            description: "좋아요 추가 중 오류가 발생했습니다.",
-            variant: "destructive",
-          })
+          // 중복 좋아요 에러인 경우 사용자에게 알림
+          if (error.code === "23505") {
+            toast({
+              title: "이미 좋아요를 누르셨습니다",
+              description: "한 게시글에는 한 번만 좋아요를 누를 수 있습니다.",
+              variant: "destructive",
+            })
+            // 상태 다시 확인
+            await fetchLikeInfo()
+          } else {
+            toast({
+              title: "좋아요 실패",
+              description: "좋아요 추가 중 오류가 발생했습니다.",
+              variant: "destructive",
+            })
+          }
           return
         }
 
@@ -156,6 +170,11 @@ export function PostDetail({ post, refreshPosts }) {
       }
     } catch (error) {
       console.error("Error:", error)
+      toast({
+        title: "오류 발생",
+        description: "작업 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
     } finally {
       setLikeLoading(false)
     }
@@ -221,6 +240,7 @@ export function PostDetail({ post, refreshPosts }) {
         description: "댓글이 성공적으로 작성되었습니다.",
       })
 
+      // 게시글 목록의 댓글 수도 업데이트
       if (refreshPosts) {
         refreshPosts()
       }
