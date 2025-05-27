@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/auth-provider"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
 
 // 관리자 역할 ID (예: 1은 FAE, 2는 Sales, 3은 Marketing)
 const ADMIN_ROLE_ID = 999 // 실제 관리자 역할 ID로 변경 필요
@@ -19,6 +20,7 @@ const ADMIN_ROLE_ID = 999 // 실제 관리자 역할 ID로 변경 필요
 export function CreatePostForm() {
   const { user } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [formData, setFormData] = useState({
     title: "",
     content: "",
@@ -35,23 +37,22 @@ export function CreatePostForm() {
     const fetchBoards = async () => {
       setLoadingBoards(true)
       try {
-        // 4가지 주요 게시판 정의
-        const mainBoards = [
-          { id: 1, name: "공지사항", slug: "announcements" },
-          { id: 2, name: "FAE", slug: "fae" },
-          { id: 3, name: "Sales", slug: "sales" },
-          { id: 4, name: "Marketing", slug: "marketing" },
-        ]
+        // 실제 게시판 데이터 가져오기
+        const { data: boardsData, error } = await supabase.from("boards").select("*").order("id")
+
+        if (error) {
+          console.error("Error fetching boards:", error)
+          return
+        }
 
         // 관리자가 아닌 경우 공지사항 제외
-        const availableBoards = isAdmin ? mainBoards : mainBoards.filter((board) => board.slug !== "announcements")
+        const availableBoards = isAdmin ? boardsData : boardsData.filter((board) => board.slug !== "announcements")
 
-        setBoards(availableBoards)
+        setBoards(availableBoards || [])
 
-        // 기본 게시판 설정 - 관리자가 아닌 경우 FAE 게시판, 관리자인 경우 공지사항
-        if (availableBoards.length > 0) {
+        // 기본 게시판 설정
+        if (availableBoards && availableBoards.length > 0) {
           const defaultBoard = isAdmin ? availableBoards[0] : availableBoards[0]
-
           setFormData((prev) => ({
             ...prev,
             boardId: defaultBoard.id.toString(),
@@ -118,6 +119,7 @@ export function CreatePostForm() {
         .select()
 
       if (error) {
+        console.error("Post creation error:", error)
         setMessage({ type: "error", text: error.message })
         return
       }
@@ -127,18 +129,23 @@ export function CreatePostForm() {
         text: "게시글이 성공적으로 작성되었습니다.",
       })
 
+      toast({
+        title: "게시글 작성 완료",
+        description: "게시글이 성공적으로 작성되었습니다.",
+      })
+
       // 폼 초기화
       setFormData({
         title: "",
         content: "",
-        boardId: "",
+        boardId: boards.length > 0 ? boards[0].id.toString() : "",
       })
 
       // 3초 후 게시판으로 이동
       setTimeout(() => {
         router.push("/board")
         router.refresh()
-      }, 3000)
+      }, 1500)
     } catch (error) {
       console.error("Post creation error:", error)
       setMessage({ type: "error", text: "게시글 작성 중 오류가 발생했습니다." })
