@@ -12,11 +12,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/auth-provider"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
-import { ROLES } from "@/lib/constants"
+import { useToast } from "@/components/ui/use-toast"
+
+// 관리자 역할 ID (예: 1은 FAE, 2는 Sales, 3은 Marketing)
+const ADMIN_ROLE_ID = 999 // 실제 관리자 역할 ID로 변경 필요
 
 export function CreatePostForm() {
   const { user } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [formData, setFormData] = useState({
     title: "",
     content: "",
@@ -26,7 +30,7 @@ export function CreatePostForm() {
   const [loading, setLoading] = useState(false)
   const [loadingBoards, setLoadingBoards] = useState(true)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const isAdmin = user?.role_id === ROLES.ADMIN // 관리자 여부 확인
+  const isAdmin = user?.role_id === ADMIN_ROLE_ID // 관리자 여부 확인
 
   // 사용자 역할에 따라 접근 가능한 게시판 가져오기
   useEffect(() => {
@@ -34,7 +38,7 @@ export function CreatePostForm() {
       setLoadingBoards(true)
       try {
         // 실제 게시판 데이터 가져오기
-        const { data, error } = await supabase.from("boards").select("*")
+        const { data: boardsData, error } = await supabase.from("boards").select("*").order("id")
 
         if (error) {
           console.error("Error fetching boards:", error)
@@ -42,20 +46,16 @@ export function CreatePostForm() {
         }
 
         // 관리자가 아닌 경우 공지사항 제외
-        let availableBoards = data || []
-        if (!isAdmin) {
-          availableBoards = availableBoards.filter(
-            (board) => board.slug !== "announcements" && board.name !== "공지사항",
-          )
-        }
+        const availableBoards = isAdmin ? boardsData : boardsData.filter((board) => board.slug !== "announcements")
 
-        setBoards(availableBoards)
+        setBoards(availableBoards || [])
 
         // 기본 게시판 설정
-        if (availableBoards.length > 0) {
+        if (availableBoards && availableBoards.length > 0) {
+          const defaultBoard = isAdmin ? availableBoards[0] : availableBoards[0]
           setFormData((prev) => ({
             ...prev,
-            boardId: availableBoards[0].id.toString(),
+            boardId: defaultBoard.id.toString(),
           }))
         }
       } catch (error) {
@@ -97,11 +97,8 @@ export function CreatePostForm() {
     // 게시판 접근 권한 확인
     const selectedBoard = boards.find((board) => board.id.toString() === formData.boardId)
 
-    // 공지사항 게시판인지 확인
-    const isAnnouncementBoard = selectedBoard?.slug === "announcements" || selectedBoard?.name === "공지사항"
-
     // 관리자가 아닌 사용자가 공지사항에 글을 작성하려고 할 때
-    if (isAnnouncementBoard && !isAdmin) {
+    if (!isAdmin && selectedBoard?.slug === "announcements") {
       setMessage({ type: "error", text: "공지사항 게시판에 글을 작성할 권한이 없습니다." })
       setLoading(false)
       return
@@ -122,6 +119,7 @@ export function CreatePostForm() {
         .select()
 
       if (error) {
+        console.error("Post creation error:", error)
         setMessage({ type: "error", text: error.message })
         return
       }
@@ -131,18 +129,23 @@ export function CreatePostForm() {
         text: "게시글이 성공적으로 작성되었습니다.",
       })
 
+      toast({
+        title: "게시글 작성 완료",
+        description: "게시글이 성공적으로 작성되었습니다.",
+      })
+
       // 폼 초기화
       setFormData({
         title: "",
         content: "",
-        boardId: "",
+        boardId: boards.length > 0 ? boards[0].id.toString() : "",
       })
 
       // 3초 후 게시판으로 이동
       setTimeout(() => {
         router.push("/board")
         router.refresh()
-      }, 3000)
+      }, 1500)
     } catch (error) {
       console.error("Post creation error:", error)
       setMessage({ type: "error", text: "게시글 작성 중 오류가 발생했습니다." })

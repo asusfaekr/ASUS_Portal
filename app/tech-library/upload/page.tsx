@@ -93,7 +93,7 @@ export default function UploadDocumentPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>기술 문서 업로드</CardTitle>
+            <CardTitle>Upload Docs</CardTitle>
             <CardDescription>새로운 기술 문서를 라이브러리에 추가합니다.</CardDescription>
           </CardHeader>
           <CardContent>

@@ -13,7 +13,6 @@ export async function GET(request: Request) {
         { id: 1, name: "FAE", description: "Field Application Engineer", created_at: new Date().toISOString() },
         { id: 2, name: "Sales", description: "Sales Team", created_at: new Date().toISOString() },
         { id: 3, name: "Marketing", description: "Marketing Team", created_at: new Date().toISOString() },
-        { id: 999, name: "Admin", description: "Administrator", created_at: new Date().toISOString() }, // 관리자 역할 추가
       ],
       { onConflict: "id" },
     )
@@ -32,54 +31,27 @@ export async function GET(request: Request) {
         },
         {
           id: 2,
-          name: "FAE 기술 업데이트",
-          slug: "fae-technical-updates",
-          description: "FAE 기술 업데이트 게시판",
+          name: "FAE",
+          slug: "fae",
+          description: "FAE 게시판",
           role_id: 1,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
         {
           id: 3,
-          name: "FAE 리소스",
-          slug: "fae-resources",
-          description: "FAE 리소스 게시판",
-          role_id: 1,
+          name: "Sales",
+          slug: "sales",
+          description: "Sales 게시판",
+          role_id: 2,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
         {
           id: 4,
-          name: "Sales 기회",
-          slug: "sales-opportunities",
-          description: "Sales 기회 게시판",
-          role_id: 2,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: 5,
-          name: "Sales 리소스",
-          slug: "sales-resources",
-          description: "Sales 리소스 게시판",
-          role_id: 2,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: 6,
-          name: "Marketing 캠페인",
-          slug: "marketing-campaigns",
-          description: "Marketing 캠페인 게시판",
-          role_id: 3,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: 7,
-          name: "Marketing 리소스",
-          slug: "marketing-resources",
-          description: "Marketing 리소스 게시판",
+          name: "Marketing",
+          slug: "marketing",
+          description: "Marketing 게시판",
           role_id: 3,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -141,16 +113,6 @@ export async function GET(request: Request) {
           created_at: new Date(Date.now() - 172800000).toISOString(), // 2일 전
           updated_at: new Date(Date.now() - 172800000).toISOString(),
         },
-        {
-          id: 6,
-          title: "FAE 리소스 - 기술 문서 모음",
-          content:
-            "FAE 업무에 필요한 기술 문서들을 모아놓았습니다.\n\n주요 문서:\n- A100 시리즈 사용자 매뉴얼\n- 기술 지원 가이드라인\n- 문제 해결 체크리스트\n\n필요한 문서가 있으면 댓글로 요청해주세요.",
-          board_id: 3,
-          user_id: user.id,
-          created_at: new Date(Date.now() - 259200000).toISOString(), // 3일 전
-          updated_at: new Date(Date.now() - 259200000).toISOString(),
-        },
       ],
       { onConflict: "id" },
     )
@@ -163,20 +125,10 @@ export async function GET(request: Request) {
           title: "2023년 4분기 판매 전략",
           content:
             "2023년 4분기 판매 전략에 대한 내용입니다.\n\n주요 포인트:\n- 타겟 시장 분석\n- 경쟁사 동향\n- 프로모션 계획\n\n자세한 내용은 회의에서 논의하겠습니다.",
-          board_id: 4,
+          board_id: 3,
           user_id: user.id,
           created_at: new Date(Date.now() - 345600000).toISOString(), // 4일 전
           updated_at: new Date(Date.now() - 345600000).toISOString(),
-        },
-        {
-          id: 7,
-          title: "Sales 리소스 - 제품 가격표",
-          content:
-            "최신 제품 가격표가 업데이트되었습니다.\n\n주요 내용:\n- A100 시리즈 가격 인하\n- 신제품 B200 시리즈 가격 정보\n- 대량 구매 할인율 안내\n\n영업 활동에 참고하시기 바랍니다.",
-          board_id: 5,
-          user_id: user.id,
-          created_at: new Date(Date.now() - 432000000).toISOString(), // 5일 전
-          updated_at: new Date(Date.now() - 432000000).toISOString(),
         },
       ],
       { onConflict: "id" },
@@ -190,20 +142,10 @@ export async function GET(request: Request) {
           title: "신제품 출시 마케팅 계획",
           content:
             "다가오는 신제품 출시를 위한 마케팅 계획입니다.\n\n주요 일정:\n- 티저 캠페인: 10월 1일\n- 소셜미디어 홍보: 10월 10일\n- 공식 출시 이벤트: 10월 15일\n\n각 팀별 역할과 책임은 첨부 문서를 참조하세요.",
-          board_id: 6,
+          board_id: 4,
           user_id: user.id,
           created_at: new Date(Date.now() - 518400000).toISOString(), // 6일 전
           updated_at: new Date(Date.now() - 518400000).toISOString(),
-        },
-        {
-          id: 8,
-          title: "Marketing 리소스 - 브랜드 가이드라인",
-          content:
-            "ASUS 브랜드 가이드라인이 업데이트되었습니다.\n\n주요 변경사항:\n- 로고 사용 지침 업데이트\n- 새로운 컬러 팔레트 추가\n- 마케팅 자료 템플릿 추가\n\n모든 마케팅 자료 제작 시 참고해주세요.",
-          board_id: 7,
-          user_id: user.id,
-          created_at: new Date(Date.now() - 604800000).toISOString(), // 7일 전
-          updated_at: new Date(Date.now() - 604800000).toISOString(),
         },
       ],
       { onConflict: "id" },
@@ -227,54 +169,6 @@ export async function GET(request: Request) {
           user_id: user.id,
           created_at: new Date(Date.now() - 64800000).toISOString(), // 18시간 전
           updated_at: new Date(Date.now() - 64800000).toISOString(),
-        },
-        {
-          id: 3,
-          content: "펌웨어 업데이트 후 성능이 확실히 개선된 것 같습니다.",
-          post_id: 3,
-          user_id: user.id,
-          created_at: new Date(Date.now() - 86400000).toISOString(), // 1일 전
-          updated_at: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: 4,
-          content: "4분기 전략 회의 일정은 언제인가요?",
-          post_id: 4,
-          user_id: user.id,
-          created_at: new Date(Date.now() - 108000000).toISOString(), // 1.25일 전
-          updated_at: new Date(Date.now() - 108000000).toISOString(),
-        },
-        {
-          id: 5,
-          content: "출시 이벤트 준비 상황은 어떻게 되나요?",
-          post_id: 5,
-          user_id: user.id,
-          created_at: new Date(Date.now() - 129600000).toISOString(), // 1.5일 전
-          updated_at: new Date(Date.now() - 129600000).toISOString(),
-        },
-        {
-          id: 6,
-          content: "문제 해결 체크리스트가 매우 유용합니다. 감사합니다!",
-          post_id: 6,
-          user_id: user.id,
-          created_at: new Date(Date.now() - 151200000).toISOString(), // 1.75일 전
-          updated_at: new Date(Date.now() - 151200000).toISOString(),
-        },
-        {
-          id: 7,
-          content: "A100 시리즈 가격 인하로 판매량이 증가할 것으로 예상됩니다.",
-          post_id: 7,
-          user_id: user.id,
-          created_at: new Date(Date.now() - 172800000).toISOString(), // 2일 전
-          updated_at: new Date(Date.now() - 172800000).toISOString(),
-        },
-        {
-          id: 8,
-          content: "새 브랜드 가이드라인에 따라 마케팅 자료를 업데이트하겠습니다.",
-          post_id: 8,
-          user_id: user.id,
-          created_at: new Date(Date.now() - 194400000).toISOString(), // 2.25일 전
-          updated_at: new Date(Date.now() - 194400000).toISOString(),
         },
       ],
       { onConflict: "id" },

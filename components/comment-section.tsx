@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth-provider"
 import { supabase } from "@/lib/supabase"
 import { Loader2, ThumbsUp } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
 
 interface CommentSectionProps {
   postId: number
@@ -16,6 +17,7 @@ interface CommentSectionProps {
 
 export function CommentSection({ postId, initialComments = [] }: CommentSectionProps) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [comments, setComments] = useState(initialComments)
   const [newComment, setNewComment] = useState("")
   const [loading, setLoading] = useState(false)
@@ -44,21 +46,38 @@ export function CommentSection({ postId, initialComments = [] }: CommentSectionP
 
       if (error) {
         console.error("Error submitting comment:", error)
+        toast({
+          title: "댓글 작성 실패",
+          description: "댓글 작성 중 오류가 발생했습니다.",
+          variant: "destructive",
+        })
         return
       }
 
       // 새 댓글에 좋아요 정보 추가
       const newCommentWithLikes = {
         ...data,
+        commentsCount: 0,
         likesCount: 0,
         userLiked: false,
       }
 
       setComments([newCommentWithLikes, ...comments])
       setNewComment("")
+
+      toast({
+        title: "댓글 작성 완료",
+        description: "댓글이 성공적으로 작성되었습니다.",
+      })
+
       router.refresh()
     } catch (error) {
       console.error("Error:", error)
+      toast({
+        title: "댓글 작성 실패",
+        description: "댓글 작성 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -78,7 +97,21 @@ export function CommentSection({ postId, initialComments = [] }: CommentSectionP
       if (isLiked) {
         // 좋아요 취소 시도
         try {
-          await supabase.from("comment_likes").delete().eq("comment_id", commentId).eq("user_id", user.id)
+          const { error } = await supabase
+            .from("comment_likes")
+            .delete()
+            .eq("comment_id", commentId)
+            .eq("user_id", user.id)
+
+          if (error) {
+            console.error("Error removing like:", error)
+            toast({
+              title: "좋아요 취소 실패",
+              description: "좋아요 취소 중 오류가 발생했습니다.",
+              variant: "destructive",
+            })
+            return
+          }
 
           // 댓글 목록 업데이트
           const updatedComments = [...comments]
@@ -88,17 +121,32 @@ export function CommentSection({ postId, initialComments = [] }: CommentSectionP
             userLiked: false,
           }
           setComments(updatedComments)
+
+          toast({
+            title: "좋아요 취소",
+            description: "댓글 좋아요가 취소되었습니다.",
+          })
         } catch (error) {
           console.error("Error removing like:", error)
         }
       } else {
         // 좋아요 추가 시도
         try {
-          await supabase.from("comment_likes").insert({
+          const { error } = await supabase.from("comment_likes").insert({
             comment_id: commentId,
             user_id: user.id,
             created_at: new Date().toISOString(),
           })
+
+          if (error) {
+            console.error("Error adding like:", error)
+            toast({
+              title: "좋아요 실패",
+              description: "좋아요 추가 중 오류가 발생했습니다.",
+              variant: "destructive",
+            })
+            return
+          }
 
           // 댓글 목록 업데이트
           const updatedComments = [...comments]
@@ -108,6 +156,11 @@ export function CommentSection({ postId, initialComments = [] }: CommentSectionP
             userLiked: true,
           }
           setComments(updatedComments)
+
+          toast({
+            title: "좋아요 추가",
+            description: "댓글에 좋아요를 추가했습니다.",
+          })
         } catch (error) {
           console.error("Error adding like:", error)
         }

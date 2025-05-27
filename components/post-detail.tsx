@@ -5,60 +5,59 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, ThumbsUp, Share2 } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { MessageSquare, ThumbsUp, Share2, Loader2 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/components/auth-provider"
 import { supabase } from "@/lib/supabase"
-import { Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
 
 export function PostDetail({ post, refreshPosts }) {
   const [shareMessage, setShareMessage] = useState<string | null>(null)
   const [showCommentForm, setShowCommentForm] = useState(false)
   const [comment, setComment] = useState("")
   const [submitting, setSubmitting] = useState(false)
-  const { user } = useAuth()
-
-  // 댓글 관련 상태 추가
   const [comments, setComments] = useState([])
-  const [loadingComments, setLoadingComments] = useState(false)
-  const [visibleComments, setVisibleComments] = useState(5) // 처음에 5개만 표시
-  const [totalComments, setTotalComments] = useState(0)
+  const [showAllComments, setShowAllComments] = useState(false)
+  const [loadingComments, setLoadingComments] = useState(true)
+  const [likeCount, setLikeCount] = useState(0)
+  const [commentCount, setCommentCount] = useState(0)
+  const [userLiked, setUserLiked] = useState(false)
+  const [likeLoading, setLikeLoading] = useState(false)
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const router = useRouter()
 
-  // 게시글이 변경될 때마다 댓글 로드
   useEffect(() => {
-    if (post?.id) {
-      loadComments()
+    if (post) {
+      fetchComments()
+      fetchLikeInfo()
     }
-  }, [post?.id])
+  }, [post, user])
 
-  // 댓글 로드 함수
-  const loadComments = async () => {
-    if (!post?.id) return
+  const fetchComments = async () => {
+    if (!post) return
 
     setLoadingComments(true)
     try {
-      // 댓글 가져오기
-      const { data, error, count } = await supabase
+      const { data, error } = await supabase
         .from("comments")
-        .select(
-          `
+        .select(`
           *,
-          users:user_id (*)
-        `,
-          { count: "exact" },
-        )
+          users:user_id (id, full_name, company, position)
+        `)
         .eq("post_id", post.id)
         .order("created_at", { ascending: false })
 
       if (error) {
-        console.error("Error loading comments:", error)
+        console.error("Error fetching comments:", error)
         return
       }
 
       setComments(data || [])
-      setTotalComments(count || 0)
+      setCommentCount(data?.length || 0)
     } catch (error) {
       console.error("Error:", error)
     } finally {
@@ -66,9 +65,119 @@ export function PostDetail({ post, refreshPosts }) {
     }
   }
 
-  // 더 많은 댓글 로드
-  const loadMoreComments = () => {
-    setVisibleComments((prev) => prev + 5)
+  const fetchLikeInfo = async () => {
+    if (!post) return
+
+    try {
+      // 좋아요 수 가져오기
+      const { count, error: countError } = await supabase
+        .from("likes")
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", post.id)
+
+      if (!countError) {
+        setLikeCount(count || 0)
+      }
+
+      // 사용자가 좋아요 했는지 확인
+      if (user) {
+        const { data: userLikeData, error: userLikeError } = await supabase
+          .from("likes")
+          .select("id")
+          .eq("post_id", post.id)
+          .eq("user_id", user.id)
+          .single()
+
+        if (!userLikeError && userLikeData) {
+          setUserLiked(true)
+        } else {
+          setUserLiked(false)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching like info:", error)
+    }
+  }
+
+  const handleLike = async () => {
+    if (!user) {
+      router.push("/login")
+      return
+    }
+
+    setLikeLoading(true)
+    try {
+      if (userLiked) {
+        // 좋아요 취소
+        const { error } = await supabase.from("likes").delete().eq("post_id", post.id).eq("user_id", user.id)
+
+        if (error) {
+          console.error("Error removing like:", error)
+          toast({
+            title: "좋아요 취소 실패",
+            description: "좋아요 취소 중 오류가 발생했습니다.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        setLikeCount((prev) => Math.max(0, prev - 1))
+        setUserLiked(false)
+        toast({
+          title: "좋아요 취소",
+          description: "게시글 좋아요가 취소되었습니다.",
+        })
+      } else {
+        // 좋아요 추가
+        const { error } = await supabase.from("likes").insert({
+          post_id: post.id,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+        })
+
+        if (error) {
+          console.error("Error adding like:", error)
+          // 중복 좋아요 에러인 경우 사용자에게 알림
+          if (error.code === "23505") {
+            toast({
+              title: "이미 좋아요를 누르셨습니다",
+              description: "한 게시글에는 한 번만 좋아요를 누를 수 있습니다.",
+              variant: "destructive",
+            })
+            // 상태 다시 확인
+            await fetchLikeInfo()
+          } else {
+            toast({
+              title: "좋아요 실패",
+              description: "좋아요 추가 중 오류가 발생했습니다.",
+              variant: "destructive",
+            })
+          }
+          return
+        }
+
+        setLikeCount((prev) => prev + 1)
+        setUserLiked(true)
+        toast({
+          title: "좋아요 추가",
+          description: "게시글에 좋아요를 추가했습니다.",
+        })
+      }
+
+      // 게시글 목록 새로고침
+      if (refreshPosts) {
+        refreshPosts()
+      }
+    } catch (error) {
+      console.error("Error:", error)
+      toast({
+        title: "오류 발생",
+        description: "작업 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setLikeLoading(false)
+    }
   }
 
   if (!post) return null
@@ -80,6 +189,8 @@ export function PostDetail({ post, refreshPosts }) {
       year: "numeric",
       month: "long",
       day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     }).format(date)
   }
 
@@ -112,17 +223,24 @@ export function PostDetail({ post, refreshPosts }) {
 
       if (error) {
         console.error("Error submitting comment:", error)
+        toast({
+          title: "댓글 작성 실패",
+          description: "댓글 작성 중 오류가 발생했습니다.",
+          variant: "destructive",
+        })
         return
       }
 
-      // 댓글 작성 후 폼 초기화
       setComment("")
       setShowCommentForm(false)
+      await fetchComments()
 
-      // 댓글 목록 새로고침
-      loadComments()
+      toast({
+        title: "댓글 작성 완료",
+        description: "댓글이 성공적으로 작성되었습니다.",
+      })
 
-      // 게시글 목록 새로고침 (댓글 수 업데이트를 위해)
+      // 게시글 목록의 댓글 수도 업데이트
       if (refreshPosts) {
         refreshPosts()
       }
@@ -132,6 +250,9 @@ export function PostDetail({ post, refreshPosts }) {
       setSubmitting(false)
     }
   }
+
+  const displayedComments = showAllComments ? comments : comments.slice(0, 5)
+  const hasMoreComments = comments.length > 5
 
   return (
     <Card className="sticky top-20">
@@ -175,64 +296,28 @@ export function PostDetail({ post, refreshPosts }) {
         <Separator />
 
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" className="gap-2">
-            <ThumbsUp className="h-4 w-4" />
-            좋아요 {post.likesCount || 0}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`gap-2 ${userLiked ? "text-blue-600" : ""}`}
+            onClick={handleLike}
+            disabled={likeLoading}
+          >
+            {likeLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ThumbsUp className={`h-4 w-4 ${userLiked ? "fill-current" : ""}`} />
+            )}
+            좋아요 {likeCount > 0 ? likeCount : ""}
           </Button>
           <Button variant="ghost" size="sm" className="gap-2" onClick={() => setShowCommentForm(!showCommentForm)}>
             <MessageSquare className="h-4 w-4" />
-            댓글 {post.commentsCount || 0}
+            댓글 {commentCount > 0 ? commentCount : ""}
           </Button>
           <Button variant="ghost" size="sm" className="gap-2" onClick={handleShare}>
             <Share2 className="h-4 w-4" />
             공유
           </Button>
-        </div>
-
-        {/* 댓글 목록 표시 */}
-        <div className="space-y-4 pt-2">
-          <h3 className="text-sm font-medium">댓글 {totalComments}개</h3>
-
-          {loadingComments ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            </div>
-          ) : comments.length > 0 ? (
-            <div className="space-y-4">
-              {comments.slice(0, visibleComments).map((comment) => (
-                <div key={comment.id} className="border-b pb-4">
-                  <div className="flex gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>{comment.users?.full_name?.[0] || "U"}</AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-medium text-sm">{comment.users?.full_name || "사용자"}</span>
-                          <span className="text-xs text-muted-foreground ml-2">{comment.users?.position || ""}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
-                      </div>
-                      <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* 더보기 버튼 */}
-              {visibleComments < totalComments && (
-                <div className="text-center pt-2">
-                  <Button variant="ghost" size="sm" onClick={loadMoreComments}>
-                    댓글 더보기 ({totalComments - visibleComments}개 더)
-                  </Button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-4 text-muted-foreground">
-              <p>아직 댓글이 없습니다. 첫 번째 댓글을 작성해보세요!</p>
-            </div>
-          )}
         </div>
 
         {showCommentForm && (
@@ -255,6 +340,51 @@ export function PostDetail({ post, refreshPosts }) {
               </div>
             </form>
           </div>
+        )}
+
+        {/* 댓글 섹션 - 동적 크기 조정 */}
+        {comments.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">최근 댓글</h3>
+                {hasMoreComments && !showAllComments && (
+                  <Button variant="outline" size="sm" onClick={() => setShowAllComments(true)}>
+                    더 보기 ({comments.length - 5}개 더)
+                  </Button>
+                )}
+                {showAllComments && hasMoreComments && (
+                  <Button variant="outline" size="sm" onClick={() => setShowAllComments(false)}>
+                    접기
+                  </Button>
+                )}
+              </div>
+
+              {loadingComments ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {displayedComments.map((comment) => (
+                    <div key={comment.id} className="flex gap-3 p-2 bg-muted/30 rounded-lg">
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="text-xs">{comment.users?.full_name?.[0] || "U"}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium">{comment.users?.full_name || "사용자"}</span>
+                          <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
+                        </div>
+                        <p className="text-xs">{comment.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
