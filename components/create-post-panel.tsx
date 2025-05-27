@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/auth-provider"
 import { supabase } from "@/lib/supabase"
 import { Loader2, X } from "lucide-react"
+import { ROLES } from "@/lib/constants"
 
 export function CreatePostPanel({ onCancel, onPostCreated, boards = [] }) {
   const { user } = useAuth()
@@ -20,6 +21,31 @@ export function CreatePostPanel({ onCancel, onPostCreated, boards = [] }) {
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [availableBoards, setAvailableBoards] = useState([])
+
+  // 사용자 역할에 따라 사용 가능한 게시판 필터링
+  useEffect(() => {
+    // 관리자 역할 확인 (ROLES.ADMIN은 999로 정의되어 있음)
+    const isAdmin = user?.role_id === ROLES.ADMIN
+
+    // 사용자 역할에 따라 사용 가능한 게시판 필터링
+    let filteredBoards = [...boards]
+
+    // 관리자가 아닌 경우 공지사항 게시판 제외
+    if (!isAdmin) {
+      filteredBoards = boards.filter((board) => board.slug !== "announcements" && board.name !== "공지사항")
+    }
+
+    setAvailableBoards(filteredBoards)
+
+    // 기본 게시판 설정 (필터링된 게시판 중 첫 번째)
+    if (filteredBoards.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        boardId: filteredBoards[0].id.toString(),
+      }))
+    }
+  }, [boards, user])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -43,6 +69,19 @@ export function CreatePostPanel({ onCancel, onPostCreated, boards = [] }) {
 
     if (!formData.title || !formData.content || !formData.boardId) {
       setMessage({ type: "error", text: "모든 필드를 입력해주세요." })
+      setLoading(false)
+      return
+    }
+
+    // 선택한 게시판 정보 가져오기
+    const selectedBoard = boards.find((board) => board.id.toString() === formData.boardId)
+
+    // 공지사항 게시판인지 확인
+    const isAnnouncementBoard = selectedBoard?.slug === "announcements" || selectedBoard?.name === "공지사항"
+
+    // 관리자가 아닌데 공지사항에 글을 작성하려는 경우
+    if (isAnnouncementBoard && user.role_id !== ROLES.ADMIN) {
+      setMessage({ type: "error", text: "공지사항은 관리자만 작성할 수 있습니다." })
       setLoading(false)
       return
     }
@@ -75,7 +114,7 @@ export function CreatePostPanel({ onCancel, onPostCreated, boards = [] }) {
       setFormData({
         title: "",
         content: "",
-        boardId: boards.length > 0 ? boards[0].id.toString() : "",
+        boardId: availableBoards.length > 0 ? availableBoards[0].id.toString() : "",
       })
 
       // 부모 컴포넌트에 알림
@@ -119,7 +158,7 @@ export function CreatePostPanel({ onCancel, onPostCreated, boards = [] }) {
                 <SelectValue placeholder="게시판을 선택하세요" />
               </SelectTrigger>
               <SelectContent>
-                {boards.map((board) => (
+                {availableBoards.map((board) => (
                   <SelectItem key={board.id} value={board.id.toString()}>
                     {board.name}
                   </SelectItem>

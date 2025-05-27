@@ -77,7 +77,7 @@ export function Header() {
               }`}
             >
               <FileText className="h-5 w-5" />
-              <span>Docs</span>
+              <span>기술 문서</span>
             </Link>
           </nav>
         </div>
