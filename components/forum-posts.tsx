@@ -71,41 +71,16 @@ export function ForumPosts({
     }
   }
 
-  // 각 게시글의 좋아요와 댓글 수를 정확히 가져오는 함수
-  const getPostCounts = async (postId) => {
-    try {
-      // 댓글 수 가져오기
-      const { count: commentsCount, error: commentsError } = await supabase
-        .from("comments")
-        .select("*", { count: "exact", head: true })
-        .eq("post_id", postId)
-
-      // 좋아요 수 가져오기
-      const { count: likesCount, error: likesError } = await supabase
-        .from("likes")
-        .select("*", { count: "exact", head: true })
-        .eq("post_id", postId)
-
-      if (commentsError) console.error("Error fetching comments count:", commentsError)
-      if (likesError) console.error("Error fetching likes count:", likesError)
-
-      return {
-        commentsCount: commentsCount || 0,
-        likesCount: likesCount || 0,
-      }
-    } catch (error) {
-      console.error("Error getting post counts:", error)
-      return { commentsCount: 0, likesCount: 0 }
-    }
-  }
-
   const fetchPosts = async (category) => {
     setLoading(true)
     try {
+      // 단일 쿼리로 모든 데이터를 한 번에 가져오기 (최적화)
       let query = supabase.from("posts").select(`
           *,
-          users:user_id (*),
-          boards:board_id (*)
+          users:user_id (id, full_name, company, position),
+          boards:board_id (id, name, slug),
+          comments!inner(count),
+          likes!inner(count)
         `)
 
       // 카테고리 필터링
@@ -122,8 +97,14 @@ export function ForumPosts({
         }
       }
 
-      // 기본 정렬은 생성일 기준
-      query = query.order("created_at", { ascending: false })
+      // 정렬 방식에 따른 쿼리 최적화
+      if (activeTab === "latest") {
+        query = query.order("created_at", { ascending: false })
+      } else if (activeTab === "top") {
+        query = query.order("created_at", { ascending: false }) // 일단 시간순으로 가져온 후 클라이언트에서 정렬
+      } else if (activeTab === "hot") {
+        query = query.order("created_at", { ascending: false }) // 일단 시간순으로 가져온 후 클라이언트에서 정렬
+      }
 
       const { data, error } = await query.limit(20)
 
@@ -132,17 +113,12 @@ export function ForumPosts({
         return
       }
 
-      // 각 게시글의 댓글 및 좋아요 수를 정확히 가져오기
-      const postsWithCounts = await Promise.all(
-        data.map(async (post) => {
-          const counts = await getPostCounts(post.id)
-          return {
-            ...post,
-            commentsCount: counts.commentsCount,
-            likesCount: counts.likesCount,
-          }
-        }),
-      )
+      // 집계 함수 결과 처리 및 클라이언트 사이드 정렬
+      const postsWithCounts = (data || []).map((post) => ({
+        ...post,
+        commentsCount: post.comments?.length || 0,
+        likesCount: post.likes?.length || 0,
+      }))
 
       // 정렬 방식에 따라 재정렬
       const sortedPosts = [...postsWithCounts]
@@ -177,8 +153,10 @@ export function ForumPosts({
         .from("posts")
         .select(`
           *,
-          users:user_id (*),
-          boards:board_id (*)
+          users:user_id (id, full_name, company, position),
+          boards:board_id (id, name, slug),
+          comments!inner(count),
+          likes!inner(count)
         `)
         .or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`)
         .order("created_at", { ascending: false })
@@ -188,17 +166,11 @@ export function ForumPosts({
         return
       }
 
-      // 검색 결과에도 정확한 카운트 적용
-      const postsWithCounts = await Promise.all(
-        data.map(async (post) => {
-          const counts = await getPostCounts(post.id)
-          return {
-            ...post,
-            commentsCount: counts.commentsCount,
-            likesCount: counts.likesCount,
-          }
-        }),
-      )
+      const postsWithCounts = (data || []).map((post) => ({
+        ...post,
+        commentsCount: post.comments?.length || 0,
+        likesCount: post.likes?.length || 0,
+      }))
 
       setPosts(postsWithCounts)
 
