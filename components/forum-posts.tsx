@@ -17,10 +17,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface ForumPostsProps {
   defaultCategory?: string
-  showFilters?: boolean // 필터와 검색 표시 여부
-  simplifiedCategories?: boolean // 간소화된 카테고리 메뉴 사용 여부
-  showSortTabs?: boolean // 정렬 탭(최신, 인기, 활발한 토론) 표시 여부
-  initialSearchQuery?: string // 추가
+  showFilters?: boolean
+  simplifiedCategories?: boolean
+  showSortTabs?: boolean
+  initialSearchQuery?: string
 }
 
 export function ForumPosts({
@@ -28,7 +28,7 @@ export function ForumPosts({
   showFilters = true,
   simplifiedCategories = true,
   showSortTabs = true,
-  initialSearchQuery = "", // 추가
+  initialSearchQuery = "",
 }: ForumPostsProps) {
   const [selectedPost, setSelectedPost] = useState(null)
   const [activeTab, setActiveTab] = useState("latest")
@@ -71,43 +71,59 @@ export function ForumPosts({
     }
   }
 
+  // 각 게시글의 좋아요와 댓글 수를 정확히 가져오는 함수
+  const getPostCounts = async (postId) => {
+    try {
+      // 댓글 수 가져오기
+      const { count: commentsCount, error: commentsError } = await supabase
+        .from("comments")
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", postId)
+
+      // 좋아요 수 가져오기
+      const { count: likesCount, error: likesError } = await supabase
+        .from("likes")
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", postId)
+
+      if (commentsError) console.error("Error fetching comments count:", commentsError)
+      if (likesError) console.error("Error fetching likes count:", likesError)
+
+      return {
+        commentsCount: commentsCount || 0,
+        likesCount: likesCount || 0,
+      }
+    } catch (error) {
+      console.error("Error getting post counts:", error)
+      return { commentsCount: 0, likesCount: 0 }
+    }
+  }
+
   const fetchPosts = async (category) => {
     setLoading(true)
     try {
       let query = supabase.from("posts").select(`
           *,
           users:user_id (*),
-          boards:board_id (*),
-          comments:comments(count),
-          likes:likes(count)
+          boards:board_id (*)
         `)
 
       // 카테고리 필터링
       if (category === "announcements") {
-        // 공지사항 게시판만 필터링
         const { data: boards } = await supabase.from("boards").select("id").eq("slug", "announcements")
         if (boards && boards.length > 0) {
           query = query.eq("board_id", boards[0].id)
         }
       } else if (category === "forum") {
-        // 공지사항을 제외한 모든 게시판 (FAE, Sales, Marketing)
         const { data: boards } = await supabase.from("boards").select("id").neq("slug", "announcements")
-
         if (boards && boards.length > 0) {
           const boardIds = boards.map((board) => board.id)
           query = query.in("board_id", boardIds)
         }
       }
-      // all 카테고리는 필터링하지 않음
 
-      // 정렬 방식
-      if (activeTab === "latest") {
-        query = query.order("created_at", { ascending: false })
-      } else if (activeTab === "top") {
-        query = query.order("likes.count", { ascending: false })
-      } else if (activeTab === "hot") {
-        query = query.order("comments.count", { ascending: false })
-      }
+      // 기본 정렬은 생성일 기준
+      query = query.order("created_at", { ascending: false })
 
       const { data, error } = await query.limit(20)
 
@@ -116,18 +132,31 @@ export function ForumPosts({
         return
       }
 
-      // 댓글 및 좋아요 수 처리
-      const postsWithCounts = data.map((post) => ({
-        ...post,
-        commentsCount: post.comments?.length || 0,
-        likesCount: post.likes?.length || 0,
-      }))
+      // 각 게시글의 댓글 및 좋아요 수를 정확히 가져오기
+      const postsWithCounts = await Promise.all(
+        data.map(async (post) => {
+          const counts = await getPostCounts(post.id)
+          return {
+            ...post,
+            commentsCount: counts.commentsCount,
+            likesCount: counts.likesCount,
+          }
+        }),
+      )
 
-      setPosts(postsWithCounts)
+      // 정렬 방식에 따라 재정렬
+      const sortedPosts = [...postsWithCounts]
+      if (activeTab === "top") {
+        sortedPosts.sort((a, b) => b.likesCount - a.likesCount)
+      } else if (activeTab === "hot") {
+        sortedPosts.sort((a, b) => b.commentsCount - a.commentsCount)
+      }
 
-      // 첫 번째 게시글을 자동으로 선택 (기본적으로 최상단 게시글 표시)
-      if (postsWithCounts.length > 0) {
-        setSelectedPost(postsWithCounts[0])
+      setPosts(sortedPosts)
+
+      // 첫 번째 게시글을 자동으로 선택
+      if (sortedPosts.length > 0) {
+        setSelectedPost(sortedPosts[0])
       } else {
         setSelectedPost(null)
       }
@@ -138,46 +167,51 @@ export function ForumPosts({
     }
   }
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault()
     if (!searchQuery.trim()) return
 
     setLoading(true)
-    supabase
-      .from("posts")
-      .select(`
-        *,
-        users:user_id (*),
-        boards:board_id (*),
-        comments:comments(count),
-        likes:likes(count)
-      `)
-      .or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`)
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Search error:", error)
-          return
-        }
+    try {
+      const { data, error } = await supabase
+        .from("posts")
+        .select(`
+          *,
+          users:user_id (*),
+          boards:board_id (*)
+        `)
+        .or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`)
+        .order("created_at", { ascending: false })
 
-        // 댓글 및 좋아요 수 처리
-        const postsWithCounts = data.map((post) => ({
-          ...post,
-          commentsCount: post.comments?.length || 0,
-          likesCount: post.likes?.length || 0,
-        }))
+      if (error) {
+        console.error("Search error:", error)
+        return
+      }
 
-        setPosts(postsWithCounts)
+      // 검색 결과에도 정확한 카운트 적용
+      const postsWithCounts = await Promise.all(
+        data.map(async (post) => {
+          const counts = await getPostCounts(post.id)
+          return {
+            ...post,
+            commentsCount: counts.commentsCount,
+            likesCount: counts.likesCount,
+          }
+        }),
+      )
 
-        // 검색 결과의 첫 번째 게시글을 선택
-        if (postsWithCounts.length > 0) {
-          setSelectedPost(postsWithCounts[0])
-        } else {
-          setSelectedPost(null)
-        }
+      setPosts(postsWithCounts)
 
-        setLoading(false)
-      })
+      if (postsWithCounts.length > 0) {
+        setSelectedPost(postsWithCounts[0])
+      } else {
+        setSelectedPost(null)
+      }
+    } catch (error) {
+      console.error("Error:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handlePostSelect = (post) => {
@@ -235,7 +269,6 @@ export function ForumPosts({
     }
   }
 
-  // 간소화된 카테고리 선택 컴포넌트
   const renderCategorySelector = () => {
     if (!simplifiedCategories) return null
 
@@ -264,10 +297,8 @@ export function ForumPosts({
             </Button>
           </div>
 
-          {/* 간소화된 카테고리 선택기 */}
           {renderCategorySelector()}
 
-          {/* 정렬 탭과 필터/검색 */}
           <div className="space-y-3">
             {showSortTabs && (
               <Tabs defaultValue="latest" value={activeTab} onValueChange={setActiveTab}>
@@ -356,11 +387,11 @@ export function ForumPosts({
                         <div className="flex items-center gap-3">
                           <div className="flex items-center text-xs text-muted-foreground">
                             <ThumbsUp className="mr-1 h-3 w-3" />
-                            {post.likesCount || 0}
+                            {post.likesCount}
                           </div>
                           <div className="flex items-center text-xs text-muted-foreground">
                             <MessageSquare className="mr-1 h-3 w-3" />
-                            {post.commentsCount || 0}
+                            {post.commentsCount}
                           </div>
                         </div>
                       </div>
