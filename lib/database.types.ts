@@ -208,6 +208,73 @@ export interface Database {
           post_id?: number
         }
       }
+      common_parts: {
+        Row: {
+          id: number
+          model_name: string
+          part_type: string
+          tdp: number
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          model_name: string
+          part_type: string
+          tdp: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          model_name?: string
+          part_type?: string
+          tdp?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+      }
+      gpus: {
+        Row: {
+          id: number
+          model_name: string
+          tdp: number
+          fp64_tf: number | null
+          tf32_pf: number | null
+          fp16_pf: number | null
+          fp8_pf: number | null
+          int8_pops: number | null
+          fp4_pf: number | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          model_name: string
+          tdp: number
+          fp64_tf?: number | null
+          tf32_pf?: number | null
+          fp16_pf?: number | null
+          fp8_pf?: number | null
+          int8_pops?: number | null
+          fp4_pf?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          model_name?: string
+          tdp?: number
+          fp64_tf?: number | null
+          tf32_pf?: number | null
+          fp16_pf?: number | null
+          fp8_pf?: number | null
+          int8_pops?: number | null
+          fp4_pf?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -228,3 +295,5 @@ export type Post = Database["public"]["Tables"]["posts"]["Row"]
 export type Comment = Database["public"]["Tables"]["comments"]["Row"]
 export type CommentLike = Database["public"]["Tables"]["comment_likes"]["Row"]
 export type Like = Database["public"]["Tables"]["likes"]["Row"]
+export type CommonPart = Database["public"]["Tables"]["common_parts"]["Row"]
+export type GPU = Database["public"]["Tables"]["gpus"]["Row"]

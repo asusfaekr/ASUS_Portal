@@ -12,13 +12,11 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/components/auth-provider"
 import { CommentSection } from "@/components/comment-section"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useToast } from "@/components/ui/use-toast"
 
 export default function PostDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuth()
-  const { toast } = useToast()
   const [post, setPost] = useState<any>(null)
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,7 +42,6 @@ export default function PostDetailPage() {
           .single()
 
         if (postError) {
-          console.error("Error fetching post:", postError)
           setError("게시글을 불러오는 중 오류가 발생했습니다.")
           return
         }
@@ -117,7 +114,6 @@ export default function PostDetailPage() {
           setUserLiked(!!userLikeData)
         }
       } catch (error) {
-        console.error("Error:", error)
         setError("게시글을 불러오는 중 오류가 발생했습니다.")
       } finally {
         setLoading(false)
@@ -155,21 +151,11 @@ export default function PostDetailPage() {
 
         if (error) {
           console.error("Error removing like:", error)
-          toast({
-            title: "좋아요 취소 실패",
-            description: "좋아요 취소 중 오류가 발생했습니다.",
-            variant: "destructive",
-          })
           return
         }
 
         setLikeCount((prev) => prev - 1)
         setUserLiked(false)
-
-        toast({
-          title: "좋아요 취소",
-          description: "게시글 좋아요가 취소되었습니다.",
-        })
       } else {
         // 좋아요 추가
         const { error } = await supabase.from("likes").insert({
@@ -180,29 +166,14 @@ export default function PostDetailPage() {
 
         if (error) {
           console.error("Error adding like:", error)
-          toast({
-            title: "좋아요 실패",
-            description: "좋아요 추가 중 오류가 발생했습니다.",
-            variant: "destructive",
-          })
           return
         }
 
         setLikeCount((prev) => prev + 1)
         setUserLiked(true)
-
-        toast({
-          title: "좋아요 추가",
-          description: "게시글에 좋아요를 추가했습니다.",
-        })
       }
     } catch (error) {
       console.error("Error:", error)
-      toast({
-        title: "오류 발생",
-        description: "작업 중 오류가 발생했습니다.",
-        variant: "destructive",
-      })
     } finally {
       setLikeLoading(false)
     }
@@ -213,19 +184,10 @@ export default function PostDetailPage() {
     navigator.clipboard.writeText(url).then(
       () => {
         setShareMessage("링크가 클립보드에 복사되었습니다.")
-        toast({
-          title: "링크 복사 완료",
-          description: "게시글 링크가 클립보드에 복사되었습니다.",
-        })
         setTimeout(() => setShareMessage(null), 3000)
       },
       () => {
         setShareMessage("링크 복사에 실패했습니다.")
-        toast({
-          title: "링크 복사 실패",
-          description: "링크 복사 중 오류가 발생했습니다.",
-          variant: "destructive",
-        })
         setTimeout(() => setShareMessage(null), 3000)
       },
     )

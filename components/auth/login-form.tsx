@@ -12,22 +12,20 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
 
 export function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null)
   const router = useRouter()
-  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<"login" | "register">("login")
   const searchParams = useSearchParams()
 
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    nickname: "",
-    position: "",
-    role: "0", // Updated default value to be a non-empty string
+    nickname: "", // 닉네임 필드 추가
+    position: "", // 직책 필드 추가
+    role: "0", // 역할 필드 추가
   })
 
   // URL 파라미터 확인
@@ -106,12 +104,6 @@ export function LoginForm() {
         return
       }
 
-      // 로그인 성공 메시지
-      toast({
-        title: "로그인 성공",
-        description: "환영합니다!",
-      })
-
       // 로그인 성공 시 항상 홈으로 이동
       console.log("Login successful, redirecting to home")
 
@@ -162,11 +154,6 @@ export function LoginForm() {
         type: "success",
         text: "가입 확인 이메일이 발송되었습니다. 이메일을 확인하여 계정을 활성화해주세요.",
       })
-
-      toast({
-        title: "회원가입 성공",
-        description: "이메일을 확인하여 계정을 활성화해주세요.",
-      })
     } catch (error) {
       console.error("Signup error:", error)
       setMessage({ type: "error", text: "회원가입 중 오류가 발생했습니다." })
@@ -197,11 +184,6 @@ export function LoginForm() {
       setMessage({
         type: "success",
         text: "비밀번호 재설정 이메일이 발송되었습니다. 이메일을 확인해주세요.",
-      })
-
-      toast({
-        title: "이메일 발송 완료",
-        description: "비밀번호 재설정 이메일이 발송되었습니다.",
       })
     } catch (error) {
       console.error("Password reset error:", error)
@@ -312,7 +294,7 @@ export function LoginForm() {
                   <SelectValue placeholder="역할을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">선택 안함</SelectItem> // Updated value to be a non-empty string
+                  <SelectItem value="0">선택 안함</SelectItem>
                   <SelectItem value="1">FAE</SelectItem>
                   <SelectItem value="2">Sales</SelectItem>
                   <SelectItem value="3">Marketing</SelectItem>

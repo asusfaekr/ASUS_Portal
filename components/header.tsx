@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, LogOut, MessageSquare, Search, Settings, FileText } from "lucide-react"
+import { Home, LogOut, MessageSquare, Search, Settings, FileText, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/components/auth-provider"
@@ -77,8 +77,28 @@ export function Header() {
               }`}
             >
               <FileText className="h-5 w-5" />
-              <span>Docs</span>
+              <span>기술 문서</span>
             </Link>
+
+            {/* Tool 메뉴 추가 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
+                    pathname.startsWith("/tools") ? "text-[#0a66c2] border-b-2 border-[#0a66c2]" : ""
+                  }`}
+                >
+                  <Wrench className="h-5 w-5" />
+                  <span>Tool</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-48">
+                <DropdownMenuItem onClick={() => router.push("/tools/tdp-calculator")}>
+                  <span>TDP Calculator</span>
+                </DropdownMenuItem>
+                {/* 추후 다른 도구들 추가 가능 */}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
         </div>
 
