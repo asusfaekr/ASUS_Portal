@@ -542,6 +542,32 @@ export interface Database {
           updated_at?: string
         }
       }
+      officialsite: {
+        Row: {
+          id: string
+          modelname: string
+          detailpage: string | null
+          datasheet: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          modelname: string
+          detailpage?: string | null
+          datasheet?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          modelname?: string
+          detailpage?: string | null
+          datasheet?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -650,3 +676,4 @@ export type GPUCompatibility = Tables<"gpucompatibility">
 export type OSCompatibility = Tables<"oscompatibility">
 export type KCCertification = Tables<"kccertification">
 export type SPM = Tables<"spm">
+export type OfficialSite = Tables<"officialsite">

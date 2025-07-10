@@ -5,10 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, AlertCircle, CheckCircle, XCircle, Copy, Check, Globe } from "lucide-react"
+import { ExternalLink, AlertCircle, CheckCircle, XCircle, Copy, Check, Globe, FileText, Download } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { AuthCheck } from "@/components/auth/auth-check"
-import type { EOL, FRU, GPUCompatibility, OSCompatibility, KCCertification, SPM } from "@/lib/database.types"
+import type {
+  EOL,
+  FRU,
+  GPUCompatibility,
+  OSCompatibility,
+  KCCertification,
+  SPM,
+  OfficialSite,
+} from "@/lib/database.types"
 
 interface ProductData {
   eol: EOL[]
@@ -17,6 +25,7 @@ interface ProductData {
   oscompatibility: OSCompatibility[]
   kccertification: KCCertification[]
   spm: SPM[]
+  officialsite: OfficialSite[]
 }
 
 function ProductInformationContent() {
@@ -31,6 +40,7 @@ function ProductInformationContent() {
     oscompatibility: [],
     kccertification: [],
     spm: [],
+    officialsite: [],
   })
   const [loading, setLoading] = useState(false)
 
@@ -38,7 +48,7 @@ function ProductInformationContent() {
   useEffect(() => {
     const fetchModelNames = async () => {
       try {
-        const tables = ["eol", "fru", "gpucompatibility", "oscompatibility", "kccertification", "spm"]
+        const tables = ["eol", "fru", "gpucompatibility", "oscompatibility", "kccertification", "spm", "officialsite"]
         const allModelNames = new Set<string>()
 
         for (const table of tables) {
@@ -68,13 +78,14 @@ function ProductInformationContent() {
 
     setLoading(true)
     try {
-      const [eolData, fruData, gpuData, osData, kcData, spmData] = await Promise.all([
+      const [eolData, fruData, gpuData, osData, kcData, spmData, officialData] = await Promise.all([
         supabase.from("eol").select("*").eq("modelname", modelName),
         supabase.from("fru").select("*").eq("modelname", modelName),
         supabase.from("gpucompatibility").select("*").eq("modelname", modelName),
         supabase.from("oscompatibility").select("*").eq("modelname", modelName),
         supabase.from("kccertification").select("*").eq("modelname", modelName),
         supabase.from("spm").select("*").eq("modelname", modelName),
+        supabase.from("officialsite").select("*").eq("modelname", modelName),
       ])
 
       setProductData({
@@ -84,6 +95,7 @@ function ProductInformationContent() {
         oscompatibility: osData.data || [],
         kccertification: kcData.data || [],
         spm: spmData.data || [],
+        officialsite: officialData.data || [],
       })
     } catch (error) {
       console.error("Error fetching product data:", error)
@@ -112,6 +124,12 @@ function ProductInformationContent() {
     if (selectedModel) {
       const sipUrl = `https://sip.asus.com/tcweb/download_item_rma.aspx?model=${encodeURIComponent(selectedModel)}&product=5&type=Map&SLanguage=en-us&sn=flag`
       window.open(sipUrl, "_blank", "noopener,noreferrer")
+    }
+  }
+
+  const handleOfficialLinkClick = (url: string) => {
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer")
     }
   }
 
@@ -225,6 +243,49 @@ function ProductInformationContent() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Official Page */}
+          {productData.officialsite.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <FileText className="w-5 h-5" />
+                  <span>Official Page</span>
+                </CardTitle>
+                <CardDescription>공식 제품 페이지와 데이터시트를 확인하세요.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-3">
+                  {productData.officialsite.map((item, index) => (
+                    <div key={index} className="flex gap-3">
+                      {item.detailpage && (
+                        <Button
+                          onClick={() => handleOfficialLinkClick(item.detailpage)}
+                          variant="outline"
+                          className="flex items-center space-x-2"
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span>Server Official Detail Page</span>
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {item.datasheet && (
+                        <Button
+                          onClick={() => handleOfficialLinkClick(item.datasheet)}
+                          variant="outline"
+                          className="flex items-center space-x-2"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Datasheet</span>
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* KC Certification */}
           {productData.kccertification.length > 0 && (
