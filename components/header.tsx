@@ -1,147 +1,111 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { Home, LogOut, MessageSquare, Search, Settings, FileText, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/components/auth-provider"
-import { useState } from "react"
 import { Input } from "@/components/ui/input"
+import { Search, Bell, MessageSquare, User, Home, MessageCircle, FileText, Wrench } from "lucide-react"
+import { ThemeToggle } from "./theme-toggle"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useAuth } from "./auth-provider"
+import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
 
 export function Header() {
-  const pathname = usePathname()
-  const { user, signOut } = useAuth()
+  const { user, profile } = useAuth()
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState("")
-
-  const isActive = (path: string) => {
-    return pathname === path
-  }
 
   const handleSignOut = async () => {
-    await signOut()
+    await supabase.auth.signOut()
+    router.push("/login")
   }
-
-  const handleSearch = async (e) => {
-    e.preventDefault()
-    if (!searchQuery.trim()) return
-
-    try {
-      // 검색 결과 페이지로 이동하거나 검색 결과를 표시하는 로직
-      // 여기서는 간단히 검색 쿼리를 URL 파라미터로 전달하여 /board 페이지로 이동
-      router.push(`/board?search=${encodeURIComponent(searchQuery)}`)
-
-      // 검색 쿼리 초기화
-      setSearchQuery("")
-    } catch (error) {
-      console.error("Search error:", error)
-    }
-  }
-
-  // 사용자 역할에 따라 접근 가능한 메뉴 결정
-  const userRole = user?.role_id ? user.role_id : null
 
   return (
-    <header className="border-b bg-white sticky top-0 z-10">
-      <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#0a66c2] text-white flex items-center justify-center rounded font-bold">in</div>
-            <span className="text-xl font-bold hidden md:inline-block">ASUS Forum</span>
+    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-14 items-center">
+        <div className="mr-4 hidden md:flex">
+          <Link className="mr-6 flex items-center space-x-2" href="/">
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-600 text-white text-xs font-bold">
+              LI
+            </div>
+            <span className="hidden font-bold sm:inline-block">ASUS Forum</span>
           </Link>
-
-          <nav className="hidden md:flex items-center gap-6">
-            <Link
-              href="/"
-              className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
-                isActive("/") ? "text-[#0a66c2] border-b-2 border-[#0a66c2]" : ""
-              }`}
-            >
-              <Home className="h-5 w-5" />
-              <span>Home</span>
-            </Link>
-            <Link
-              href="/board"
-              className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
-                pathname.startsWith("/board") ? "text-[#0a66c2] border-b-2 border-[#0a66c2]" : ""
-              }`}
-            >
-              <MessageSquare className="h-5 w-5" />
-              <span>ASUS Forum</span>
-            </Link>
-            <Link
-              href="/tech-library"
-              className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
-                pathname.startsWith("/tech-library") ? "text-[#0a66c2] border-b-2 border-[#0a66c2]" : ""
-              }`}
-            >
-              <FileText className="h-5 w-5" />
-              <span>기술 문서</span>
-            </Link>
-
-            {/* Tool 메뉴 추가 */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={`text-sm font-medium flex flex-col items-center gap-1 hover:text-[#0a66c2] ${
-                    pathname.startsWith("/tools") ? "text-[#0a66c2] border-b-2 border-[#0a66c2]" : ""
-                  }`}
-                >
-                  <Wrench className="h-5 w-5" />
-                  <span>Tool</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="w-48">
-                <DropdownMenuItem onClick={() => router.push("/tools/tdp-calculator")}>
-                  <span>TDP Calculator</span>
-                </DropdownMenuItem>
-                {/* 추후 다른 도구들 추가 가능 */}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </nav>
         </div>
 
-        <div className="flex items-center gap-4">
-          <form onSubmit={handleSearch} className="relative hidden md:flex items-center">
-            <Input
-              type="search"
-              placeholder="검색..."
-              className="w-[200px] h-9 pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Button type="submit" variant="ghost" size="icon" className="absolute right-0 h-9 w-9">
-              <span className="sr-only">검색</span>
-            </Button>
-          </form>
+        <nav className="flex items-center space-x-6 text-sm font-medium">
+          <Link
+            className="flex items-center space-x-2 transition-colors hover:text-foreground/80 text-foreground/60"
+            href="/"
+          >
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </Link>
+          <Link
+            className="flex items-center space-x-2 transition-colors hover:text-foreground/80 text-foreground/60"
+            href="/board"
+          >
+            <MessageCircle className="h-4 w-4" />
+            <span>ASUS Forum</span>
+          </Link>
+          <Link
+            className="flex items-center space-x-2 transition-colors hover:text-foreground/80 text-foreground/60"
+            href="/tech-library"
+          >
+            <FileText className="h-4 w-4" />
+            <span>기술 문서</span>
+          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center space-x-2">
+                <Wrench className="h-4 w-4" />
+                <span>Tool</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem asChild>
+                <Link href="/tools/tdp-calculator">TDP Calculator</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/tools/product-information">Product Information</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </nav>
 
-          {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <div className="w-8 h-8 bg-[#0a66c2] text-white flex items-center justify-center rounded-full font-bold">
-                    {user.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => router.push("/profile")}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>프로필 설정</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>로그아웃</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button onClick={() => router.push("/login")} variant="default" size="sm">
-              로그인
+        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+          <div className="w-full flex-1 md:w-auto md:flex-none">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input type="search" placeholder="검색..." className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]" />
+            </div>
+          </div>
+          <nav className="flex items-center space-x-2">
+            <Button variant="ghost" size="sm">
+              <Bell className="h-4 w-4" />
             </Button>
-          )}
+            <Button variant="ghost" size="sm">
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+            <ThemeToggle />
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <User className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">프로필 설정</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut}>로그아웃</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button asChild size="sm">
+                <Link href="/login">로그인</Link>
+              </Button>
+            )}
+          </nav>
         </div>
       </div>
     </header>
